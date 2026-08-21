@@ -1,0 +1,26 @@
+1. you are going to build a telegram mini app and web app for wagers amongst friends. build each one different. put web app version in webapp folder and telegram version and files in telegram files
+2. it is going to be called GoWager
+3. when you open the telegram mini app, it shows a welcome screen with Wager with Friends and How To Use App. 
+4. when you click Wager with Friends, it takes you to next page with select game, we will list 5 games on each page but we will start with one game and add the remaining games later. add next and back button to navigate easily between game pages.
+5. the first game we starting with is rock paper scissors. once user presses game, it takes user to next page to see two buttons. create game and join game. when user presses create game, it takes player to a new page to create game where user will enter telegram unique id of player they will be playing against, and game rules - number of rounds, and amount per round, number of seconds for each round - 30 seconds, 45 seconds,60 seconds winner takes all style or winner per game, if one person resigns, pay full pot to winner or pay per games played, what counts as resignation - player does not choose anything 2 games in a row. after game calculates how much and player deposits his and generates a unique game room number.  player is allowed to edit and save new telegram unique id of opponent just in case he made a mistake.
+
+minimum ammount per round is 1 cedi, maximum is 50 cedis and in multplies of 1.  so 1,2,3 to 50. minimum number of games is 1 and maximum number of games is 25. 
+
+
+second player opens app, clicks join game and enters unique game room number which takes them to next page where they see all the game rules and tap I agree. it takes second user to new page to deposit money into game pool and after successful deposit and confirmation, user will press start game and game begins based on rules set.
+
+if user presses resign button during game, a message will come, are you sure you want to quit? yes or no. if user presses yes, other player wins based on set game rules. 
+
+once game is complete, showing game summary and winnings and app will get a 5% middle man fee.  for example, 5 rounds of 1 cedi each. Player 1 - 0 cedis. Player 2 - 4.75 cedis. GoWager - 0.25 cedis
+
+money will be added to players account and player can issue a withdrawal.
+
+add antihack measures
+
+add free ways to host this. example vercel, neon.tech for database and write a howto.md file for me as a beginner to host everything and make it live. step by step and detailed.
+
+
+add learnings.md
+add execution.md
+add version control.md
+interface.md

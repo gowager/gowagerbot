@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>GoWager</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+</head>
+<body>
+  <div id="app">
+    <!-- Welcome Screen -->
+    <div id="screen-welcome" class="screen active">
+      <div class="hero">
+        <div class="logo">🎮</div>
+        <h1>GoWager</h1>
+        <p class="tagline">Wager with friends. Play. Win.</p>
+      </div>
+      <div class="actions">
+        <button class="btn-free" onclick="startFreePlay()">🎉 Play Free with Friends</button>
+        <button class="btn-primary" onclick="showScreen('screen-games')">Wager with Friends</button>
+        <button class="btn-outline" onclick="showScreen('screen-howto')">How To Use App</button>
+      </div>
+      <div class="wallet-chip" onclick="showScreen('screen-wallet')">
+        <span>💰</span>
+        <span id="wallet-balance">0.00</span>
+        <span>GHS</span>
+      </div>
+    </div>
+
+    <!-- How To Use -->
+    <div id="screen-howto" class="screen">
+      <div class="header">
+        <button class="back-btn" onclick="showScreen('screen-welcome')">←</button>
+        <h2>How To Use</h2>
+      </div>
+      <div class="howto-list">
+        <div class="howto-item">
+          <div class="howto-icon">1️⃣</div>
+          <div>
+            <strong>Create a Game</strong>
+            <p>Pick a game, set rounds & stakes, invite a friend via Telegram ID.</p>
+          </div>
+        </div>
+        <div class="howto-item">
+          <div class="howto-icon">2️⃣</div>
+          <div>
+            <strong>Deposit</strong>
+            <p>Both players fund the pot. Amounts are locked securely.</p>
+          </div>
+        </div>
+        <div class="howto-item">
+          <div class="howto-icon">3️⃣</div>
+          <div>
+            <strong>Share Room Code</strong>
+            <p>Send the unique room code to your friend to join.</p>
+          </div>
+        </div>
+        <div class="howto-item">
+          <div class="howto-icon">4️⃣</div>
+          <div>
+            <strong>Play</strong>
+            <p>Beat the timer. Choose your move before time runs out!</p>
+          </div>
+        </div>
+        <div class="howto-item">
+          <div class="howto-icon">5️⃣</div>
+          <div>
+            <strong>Win & Withdraw</strong>
+            <p>Winner takes the pot minus 5% GoWager fee. Withdraw anytime.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Game Selection -->
+    <div id="screen-games" class="screen">
+      <div class="header">
+        <button class="back-btn" onclick="showScreen('screen-welcome')">←</button>
+        <h2>Select Game</h2>
+      </div>
+      <div class="page-indicator">Page 1</div>
+      <div class="game-list">
+        <div class="game-item" onclick="selectGame('rps')">
+          <div class="game-emoji">✊✋✌️</div>
+          <div class="game-info">
+            <h3>Rock Paper Scissors</h3>
+            <p>Classic. Best of N rounds.</p>
+          </div>
+          <div class="game-arrow">›</div>
+        </div>
+        <div class="game-item locked">
+          <div class="game-emoji">🔒</div>
+          <div class="game-info">
+            <h3>Coming Soon</h3>
+            <p>More games on the way</p>
+          </div>
+        </div>
+        <div class="game-item locked">
+          <div class="game-emoji">🔒</div>
+          <div class="game-info">
+            <h3>Coming Soon</h3>
+            <p>More games on the way</p>
+          </div>
+        </div>
+        <div class="game-item locked">
+          <div class="game-emoji">🔒</div>
+          <div class="game-info">
+            <h3>Coming Soon</h3>
+            <p>More games on the way</p>
+          </div>
+        </div>
+        <div class="game-item locked">
+          <div class="game-emoji">🔒</div>
+          <div class="game-info">
+            <h3>Coming Soon</h3>
+            <p>More games on the way</p>
+          </div>
+        </div>
+      </div>
+      <div class="pagination">
+        <button class="page-btn" onclick="showScreen('screen-welcome')">← Back</button>
+        <button class="page-btn" disabled>Next →</button>
+      </div>
+    </div>
+
+    <!-- Game Options -->
+    <div id="screen-game-options" class="screen">
+      <div class="header">
+        <button class="back-btn" onclick="showScreen('screen-games')">←</button>
+        <h2>Rock Paper Scissors</h2>
+      </div>
+      <div class="options">
+        <button class="btn-primary btn-big" onclick="showScreen('screen-create-game')">➕ Create Game</button>
+        <button class="btn-outline btn-big" onclick="showScreen('screen-join-game')">🔗 Join Game</button>
+      </div>
+    </div>
+
+    <!-- Create Game -->
+    <div id="screen-create-game" class="screen">
+      <div class="header">
+        <button class="back-btn" onclick="showScreen('screen-game-options')">←</button>
+        <h2>Create Game</h2>
+      </div>
+      <div class="form">
+        <div class="field">
+          <label>Opponent's Telegram ID</label>
+          <input type="text" id="opponent-id" placeholder="Enter Telegram ID">
+        </div>
+        <div class="field">
+          <label>Number of Rounds (1-25)</label>
+          <div class="stepper">
+            <button onclick="stepValue('rounds', -1)">−</button>
+            <input type="number" id="rounds" value="5" min="1" max="25" readonly>
+            <button onclick="stepValue('rounds', 1)">+</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Amount per Round (GHS)</label>
+          <div class="stepper">
+            <button onclick="stepValue('amount', -1)">−</button>
+            <input type="number" id="amount" value="1" min="1" max="50" readonly>
+            <button onclick="stepValue('amount', 1)">+</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>Seconds per Round</label>
+          <div class="segmented">
+            <button class="seg-btn" data-val="30" onclick="selectSeg(this, 'round-seconds')">30s</button>
+            <button class="seg-btn" data-val="45" onclick="selectSeg(this, 'round-seconds')">45s</button>
+            <button class="seg-btn active" data-val="60" onclick="selectSeg(this, 'round-seconds')">60s</button>
+          </div>
+          <input type="hidden" id="round-seconds" value="60">
+        </div>
+        <div class="field">
+          <label>Payout Style</label>
+          <div class="segmented">
+            <button class="seg-btn active" data-val="winner_takes_all" onclick="selectSeg(this, 'payout-style')">Winner Takes All</button>
+            <button class="seg-btn" data-val="winner_per_game" onclick="selectSeg(this, 'payout-style')">Per Game</button>
+          </div>
+          <input type="hidden" id="payout-style" value="winner_takes_all">
+        </div>
+        <div class="field">
+          <label>If Someone Resigns</label>
+          <div class="segmented">
+            <button class="seg-btn active" data-val="full_pot" onclick="selectSeg(this, 'resign-rule')">Full Pot</button>
+            <button class="seg-btn" data-val="per_game" onclick="selectSeg(this, 'resign-rule')">Per Game</button>
+          </div>
+          <input type="hidden" id="resign-rule" value="full_pot">
+        </div>
+        <div class="info-box">
+          <p>ℹ️ Resignation = not choosing 2 rounds in a row</p>
+        </div>
+        <div class="pot-box">
+          <span>Total Pot</span>
+          <strong id="total-pot">10.00 GHS</strong>
+          <small>Your Deposit (your stake): <span id="your-share">5.00</span> GHS</small>
+          <small>Total pot = your stake + opponent's stake</small>
+        </div>
+        <button class="btn-primary" onclick="createGame()">Create & Deposit</button>
+      </div>
+    </div>
+
+    <!-- Room Code -->
+    <div id="screen-room-code" class="screen">
+      <div class="header">
+        <button class="back-btn" onclick="showScreen('screen-create-game')">←</button>
+        <h2>Game Created!</h2>
+      </div>
+      <div class="room-code-box">
+        <p>Share this code with your friend:</p>
+        <div class="room-code" id="room-code-display">------</div>
+        <button class="btn-outline btn-sm" onclick="copyRoomCode()">📋 Copy</button>
+      </div>
+      <div class="field">
+        <label>Edit Opponent ID (if mistake)</label>
+        <input type="text" id="edit-opponent-id" placeholder="New Telegram ID">
+        <button class="btn-outline btn-sm" onclick="editOpponent()">Save</button>
+      </div>
+      <button class="btn-primary" onclick="showScreen('screen-welcome')">Done</button>
+    </div>
+
+    <!-- Join Game -->
+    <div id="screen-join-game" class="screen">
+      <div class="header">
+        <button class="back-btn" onclick="showScreen('screen-game-options')">←</button>
+        <h2>Join Game</h2>
+      </div>
+      <div class="form">
+        <div class="field">
+          <label>Enter Room Code</label>
+          <input type="text" id="room-code-input" placeholder="e.g. A1B2C3" maxlength="6" style="text-transform:uppercase;letter-spacing:4px;text-align:center;font-size:24px;font-weight:bold">
+        </div>
+        <button class="btn-primary" onclick="joinGame()">Find Game</button>
+      </div>
+    </div>
+
+    <!-- Game Rules -->
+    <div id="screen-game-rules" class="screen">
+      <div class="header">
+        <button class="back-btn" onclick="showScreen('screen-join-game')">←</button>
+        <h2>Game Rules</h2>
+      </div>
+      <div id="rules-content" class="rules-list"></div>
+      <button class="btn-primary" onclick="agreeAndDeposit()">I Agree & Deposit</button>
+    </div>
+
+    <!-- Deposit -->
+    <div id="screen-deposit" class="screen">
+      <div class="header">
+        <button class="back-btn" onclick="showScreen('screen-game-rules')">←</button>
+        <h2>Deposit</h2>
+      </div>
+      <div class="deposit-box">
+        <p>You need to deposit</p>
+        <strong id="deposit-amount">0.00 GHS</strong>
+        <p class="hint">Held in escrow until game completes</p>
+      </div>
+      <button class="btn-primary" onclick="processDeposit()">Deposit & Confirm</button>
+    </div>
+
+    <!-- Lobby -->
+    <div id="screen-lobby" class="screen">
+      <div class="header">
+        <button class="back-btn" onclick="showScreen('screen-welcome')">←</button>
+        <h2>Game Lobby</h2>
+      </div>
+      <div class="lobby-box">
+        <div class="lobby-row"><span>Room</span><strong id="lobby-room">---</strong></div>
+        <div class="lobby-row"><span>Status</span><span id="lobby-status">Waiting</span></div>
+      </div>
+      <button class="btn-primary" id="start-game-btn" onclick="startGame()" style="display:none">▶ Start Game</button>
+    </div>
+
+    <!-- Game Play -->
+    <div id="screen-play" class="screen">
+      <div class="header">
+        <h2>Rock Paper Scissors</h2>
+      </div>
+      <div class="game-stats">
+        <div class="stat"><span>You</span><strong id="my-score">0</strong></div>
+        <div class="stat center"><span>Round</span><strong id="current-round">1</strong><small>/<span id="total-rounds">5</span></small></div>
+        <div class="stat"><span>Opp</span><strong id="opp-score">0</strong></div>
+      </div>
+      <div class="timer-bar">
+        <div class="timer-fill" id="timer-fill"></div>
+        <span id="timer">60</span>
+      </div>
+      <div class="rps-choices">
+        <button class="rps-btn" onclick="makeChoice('rock')">
+          <span class="rps-emoji">✊</span>
+          <span>Rock</span>
+        </button>
+        <button class="rps-btn" onclick="makeChoice('paper')">
+          <span class="rps-emoji">✋</span>
+          <span>Paper</span>
+        </button>
+        <button class="rps-btn" onclick="makeChoice('scissors')">
+          <span class="rps-emoji">✌️</span>
+          <span>Scissors</span>
+        </button>
+      </div>
+      <div id="round-result" class="round-result"></div>
+      <button class="btn-danger" onclick="confirmResign()">🏳️ Resign</button>
+    </div>
+
+    <!-- Game Over -->
+    <div id="screen-game-over" class="screen">
+      <div class="header">
+        <h2>Game Over</h2>
+      </div>
+      <div id="game-over-content" class="game-over-box"></div>
+      <button class="btn-primary" onclick="showScreen('screen-welcome')">Back to Home</button>
+    </div>
+
+    <!-- Wallet -->
+    <div id="screen-wallet" class="screen">
+      <div class="header">
+        <button class="back-btn" onclick="showScreen('screen-welcome')">←</button>
+        <h2>My Wallet</h2>
+      </div>
+      <div class="wallet-box">
+        <span>Balance</span>
+        <strong id="wallet-balance-full">0.00</strong>
+        <small>GHS</small>
+      </div>
+      <div class="field">
+        <label>Withdraw Amount</label>
+        <input type="number" id="withdraw-amount" min="1" max="50" placeholder="Enter amount">
+      </div>
+      <button class="btn-primary" onclick="withdraw()">Withdraw</button>
+      <div id="transactions" class="transactions"></div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

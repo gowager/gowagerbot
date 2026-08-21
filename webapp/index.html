@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GoWager - Wager with Friends</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Welcome Screen -->
+    <div id="screen-welcome" class="screen active">
+      <div class="logo">🎮</div>
+      <h1>GoWager</h1>
+      <p>Wager with friends. Play games. Win real money.</p>
+      <button class="btn-free" onclick="startFreePlay()">🎉 Play Free with Friends</button>
+      <button class="btn-primary" onclick="showScreen('screen-games')">Wager with Friends</button>
+      <button class="btn-secondary" onclick="showScreen('screen-howto')">How To Use App</button>
+      <div class="wallet-bar">
+        <span>💰 Balance: <strong id="wallet-balance">0.00</strong> GHS</span>
+        <button class="btn-small" onclick="showScreen('screen-wallet')">Wallet</button>
+      </div>
+    </div>
+
+    <!-- How To Use Screen -->
+    <div id="screen-howto" class="screen">
+      <h2>How To Use GoWager</h2>
+      <div class="howto-content">
+        <div class="step">
+          <span class="step-num">1</span>
+          <p><strong>Create a Game</strong> - Choose a game, set the rules (rounds, amount per round, time per round), and invite a friend by their Telegram ID.</p>
+        </div>
+        <div class="step">
+          <span class="step-num">2</span>
+          <p><strong>Deposit</strong> - Both players deposit their share of the pot. The total pot is calculated automatically.</p>
+        </div>
+        <div class="step">
+          <span class="step-num">3</span>
+          <p><strong>Share the Room Code</strong> - You'll get a unique room code. Share it with your friend so they can join.</p>
+        </div>
+        <div class="step">
+          <span class="step-num">4</span>
+          <p><strong>Play</strong> - The game starts when both players are ready. Each round has a timer - choose your move before time runs out!</p>
+        </div>
+        <div class="step">
+          <span class="step-num">5</span>
+          <p><strong>Win & Withdraw</strong> - The winner gets the pot minus a 5% GoWager fee. Withdraw your winnings anytime from your wallet.</p>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="showScreen('screen-welcome')">Back</button>
+    </div>
+
+    <!-- Game Selection Screen -->
+    <div id="screen-games" class="screen">
+      <h2>Select Game</h2>
+      <p class="subtitle">Page 1 of 1</p>
+      <div class="game-grid">
+        <div class="game-card" onclick="selectGame('rps')">
+          <div class="game-icon">✊✋✌️</div>
+          <h3>Rock Paper Scissors</h3>
+          <p>Classic hand game. Best of N rounds wins!</p>
+          <button class="btn-primary btn-sm">Play Now</button>
+        </div>
+        <div class="game-card locked">
+          <div class="game-icon">🔒</div>
+          <h3>Coming Soon</h3>
+          <p>More games coming soon!</p>
+        </div>
+        <div class="game-card locked">
+          <div class="game-icon">🔒</div>
+          <h3>Coming Soon</h3>
+          <p>More games coming soon!</p>
+        </div>
+        <div class="game-card locked">
+          <div class="game-icon">🔒</div>
+          <h3>Coming Soon</h3>
+          <p>More games coming soon!</p>
+        </div>
+        <div class="game-card locked">
+          <div class="game-icon">🔒</div>
+          <h3>Coming Soon</h3>
+          <p>More games coming soon!</p>
+        </div>
+      </div>
+      <div class="nav-buttons">
+        <button class="btn-secondary" onclick="showScreen('screen-welcome')">← Back</button>
+        <button class="btn-secondary" disabled>Next →</button>
+      </div>
+    </div>
+
+    <!-- Game Options Screen (Create/Join) -->
+    <div id="screen-game-options" class="screen">
+      <h2>Rock Paper Scissors</h2>
+      <p class="subtitle">What would you like to do?</p>
+      <button class="btn-primary btn-large" onclick="showScreen('screen-create-game')">Create Game</button>
+      <button class="btn-secondary btn-large" onclick="showScreen('screen-join-game')">Join Game</button>
+      <button class="btn-back" onclick="showScreen('screen-games')">← Back</button>
+    </div>
+
+    <!-- Create Game Screen -->
+    <div id="screen-create-game" class="screen">
+      <h2>Create Game</h2>
+      <div class="form-group">
+        <label>Opponent's Telegram ID</label>
+        <input type="text" id="opponent-id" placeholder="e.g. 123456789">
+        <small>Enter your friend's Telegram user ID</small>
+      </div>
+      <div class="form-group">
+        <label>Number of Rounds (1-25)</label>
+        <input type="number" id="rounds" min="1" max="25" value="5">
+      </div>
+      <div class="form-group">
+        <label>Amount per Round (GHS 1-50)</label>
+        <input type="number" id="amount" min="1" max="50" value="1">
+      </div>
+      <div class="form-group">
+        <label>Seconds per Round</label>
+        <select id="round-seconds">
+          <option value="30">30 seconds</option>
+          <option value="45">45 seconds</option>
+          <option value="60" selected>60 seconds</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Payout Style</label>
+        <select id="payout-style">
+          <option value="winner_takes_all">Winner Takes All</option>
+          <option value="winner_per_game">Winner Per Game</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>If Someone Resigns</label>
+        <select id="resign-rule">
+          <option value="full_pot">Pay Full Pot to Winner</option>
+          <option value="per_game">Pay Per Games Played</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>What Counts as Resignation</label>
+        <p class="hint">Player does not choose anything 2 games in a row</p>
+      </div>
+      <div class="total-display">
+        <strong>Total Pot: <span id="total-pot">10.00</span> GHS</strong>
+        <p>Your Deposit (your stake): <span id="your-share">5.00</span> GHS</p>
+        <p class="pot-hint">Total pot = your stake + opponent's stake</p>
+      </div>
+      <button class="btn-primary" onclick="createGame()">Create Game & Deposit</button>
+      <button class="btn-back" onclick="showScreen('screen-game-options')">← Back</button>
+    </div>
+
+    <!-- Game Created / Room Code Screen -->
+    <div id="screen-room-code" class="screen">
+      <h2>Game Created!</h2>
+      <p>Share this room code with your friend:</p>
+      <div class="room-code" id="room-code-display">------</div>
+      <p class="hint">Your friend enters this code to join the game</p>
+      <div class="form-group">
+        <label>Edit Opponent's Telegram ID (if you made a mistake)</label>
+        <input type="text" id="edit-opponent-id" placeholder="New Telegram ID">
+        <button class="btn-small" onclick="editOpponent()">Save Changes</button>
+      </div>
+      <button class="btn-primary" onclick="showScreen('screen-welcome')">Done</button>
+    </div>
+
+    <!-- Join Game Screen -->
+    <div id="screen-join-game" class="screen">
+      <h2>Join Game</h2>
+      <div class="form-group">
+        <label>Enter Room Code</label>
+        <input type="text" id="room-code-input" placeholder="e.g. A1B2C3" maxlength="6">
+      </div>
+      <button class="btn-primary" onclick="joinGame()">Find Game</button>
+      <button class="btn-back" onclick="showScreen('screen-game-options')">← Back</button>
+    </div>
+
+    <!-- Game Rules Review Screen -->
+    <div id="screen-game-rules" class="screen">
+      <h2>Game Rules</h2>
+      <div id="rules-content" class="rules-box"></div>
+      <button class="btn-primary" onclick="agreeAndDeposit()">I Agree & Deposit</button>
+      <button class="btn-back" onclick="showScreen('screen-join-game')">← Back</button>
+    </div>
+
+    <!-- Deposit Screen -->
+    <div id="screen-deposit" class="screen">
+      <h2>Deposit</h2>
+      <p>You need to deposit <strong id="deposit-amount">0.00</strong> GHS</p>
+      <p class="hint">This is your share of the pot. It will be held in escrow until the game is complete.</p>
+      <button class="btn-primary" onclick="processDeposit()">Deposit & Confirm</button>
+      <button class="btn-back" onclick="showScreen('screen-game-rules')">← Back</button>
+    </div>
+
+    <!-- Game Lobby / Waiting Screen -->
+    <div id="screen-lobby" class="screen">
+      <h2>Game Lobby</h2>
+      <p>Waiting for players...</p>
+      <div class="lobby-info">
+        <p>Room: <strong id="lobby-room">---</strong></p>
+        <p>Status: <span id="lobby-status">Waiting</span></p>
+      </div>
+      <button class="btn-primary" id="start-game-btn" onclick="startGame()" style="display:none">Start Game</button>
+      <button class="btn-back" onclick="showScreen('screen-welcome')">Leave</button>
+    </div>
+
+    <!-- Game Play Screen -->
+    <div id="screen-play" class="screen">
+      <h2>Rock Paper Scissors</h2>
+      <div class="game-info">
+        <div class="score-box">
+          <span>You: <strong id="my-score">0</strong></span>
+          <span>Opponent: <strong id="opp-score">0</strong></span>
+        </div>
+        <div class="round-info">
+          <span>Round: <strong id="current-round">1</strong>/<span id="total-rounds">5</span></span>
+          <span>Time: <strong id="timer">60</strong>s</span>
+        </div>
+      </div>
+      <div class="choice-buttons">
+        <button class="choice-btn" onclick="makeChoice('rock')">✊<br>Rock</button>
+        <button class="choice-btn" onclick="makeChoice('paper')">✋<br>Paper</button>
+        <button class="choice-btn" onclick="makeChoice('scissors')">✌️<br>Scissors</button>
+      </div>
+      <div id="round-result" class="round-result"></div>
+      <button class="btn-danger" onclick="confirmResign()">Resign</button>
+    </div>
+
+    <!-- Game Over Screen -->
+    <div id="screen-game-over" class="screen">
+      <h2>Game Over!</h2>
+      <div id="game-over-content" class="game-over-box"></div>
+      <button class="btn-primary" onclick="showScreen('screen-welcome')">Back to Home</button>
+    </div>
+
+    <!-- Wallet Screen -->
+    <div id="screen-wallet" class="screen">
+      <h2>My Wallet</h2>
+      <div class="wallet-box">
+        <span>Balance: <strong id="wallet-balance-full">0.00</strong> GHS</span>
+      </div>
+      <div class="form-group">
+        <label>Withdraw Amount</label>
+        <input type="number" id="withdraw-amount" min="1" max="50" placeholder="Enter amount">
+      </div>
+      <button class="btn-primary" onclick="withdraw()">Withdraw</button>
+      <div id="transactions" class="transactions"></div>
+      <button class="btn-back" onclick="showScreen('screen-welcome')">← Back</button>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
