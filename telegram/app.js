@@ -20,6 +20,7 @@ let isFreeMode = false;
 let myChoice = null;
 let timerInterval = null;
 let roundDeadline = null;
+let opponentHistory = [];
 const pendingGamesCache = {};
 
 // ---------- UTILITIES ----------
@@ -406,6 +407,27 @@ function cancelPendingGame(gameId) {
   });
 }
 
+// ---------- OPPONENT PATTERN HINT ----------
+
+function updateOpponentHint() {
+  const el = document.getElementById('opponent-hint');
+  if (!el) return;
+  const h = opponentHistory;
+  if (h.length < 2) { el.textContent = ''; return; }
+  const counters = { rock: 'Paper', paper: 'Scissors', scissors: 'Rock' };
+  let predicted, reason;
+  if (h[h.length - 1] === h[h.length - 2]) {
+    predicted = h[h.length - 1];
+    reason = `has played ${predicted} twice in a row`;
+  } else {
+    const counts = { rock: 0, paper: 0, scissors: 0 };
+    h.slice(-6).forEach(c => counts[c]++);
+    predicted = Object.keys(counts).reduce((a, b) => (counts[a] >= counts[b] ? a : b));
+    reason = `favors ${predicted}`;
+  }
+  el.textContent = `💡 Opponent ${reason} — try ${counters[predicted]}!`;
+}
+
 // ---------- GAME PLAY ----------
 
 function makeChoice(choice) {
@@ -452,6 +474,8 @@ function startTimer(deadline) {
 
 socket.on('game_state', (data) => {
   currentGame = data.game;
+  opponentHistory = [];
+  updateOpponentHint();
   if (data.game.status === 'in_progress') {
     showScreen('screen-play');
     document.getElementById('current-round').textContent = data.game.current_round;
@@ -471,6 +495,8 @@ socket.on('lobby_update', (data) => {
 socket.on('game_started', (data) => {
   currentGame = data.game;
   myChoice = null;
+  opponentHistory = [];
+  updateOpponentHint();
   document.getElementById('current-round').textContent = 1;
   document.getElementById('total-rounds').textContent = data.game.rounds;
   document.getElementById('my-score').textContent = 0;
@@ -504,6 +530,9 @@ socket.on('round_result', (data) => {
   const oppScore = isCreator ? data.opponentScore : data.creatorScore;
   document.getElementById('my-score').textContent = myScore;
   document.getElementById('opp-score').textContent = oppScore;
+
+  opponentHistory.push(isCreator ? data.opponentChoice : data.creatorChoice);
+  updateOpponentHint();
 
   if (data.roundWinner === 'tie') {
     resultEl.textContent = 'Tie!';
