@@ -377,6 +377,9 @@ io.on('connection', (socket) => {
           playedRounds: 0,
         };
         activeGames.set(gameId, state);
+      } else {
+        // Refresh the in-memory snapshot so returning players get current status
+        state.game = game;
       }
 
       if (game.creator_id === userId) state.creatorSocket = socket.id;
