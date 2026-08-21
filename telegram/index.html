@@ -26,6 +26,7 @@
         <span id="wallet-balance">0.00</span>
         <span>GHS</span>
       </div>
+      <div id="pending-games" class="actions"></div>
     </div>
 
     <!-- How To Use -->
@@ -212,6 +213,8 @@
         <div class="room-code" id="room-code-display">------</div>
         <button class="btn-outline btn-sm" onclick="copyRoomCode()">📋 Copy</button>
       </div>
+      <div class="lobby-row"><span>Status</span><span id="creator-lobby-status">Waiting for opponent...</span></div>
+      <button class="btn-primary" id="creator-start-btn" onclick="startGame()" style="display:none">▶ Start Game</button>
       <div class="field">
         <label>Edit Opponent ID (if mistake)</label>
         <input type="text" id="edit-opponent-id" placeholder="New Telegram ID">

@@ -11,12 +11,14 @@ let isFreeMode = false;
 let myChoice = null;
 let timerInterval = null;
 let roundDeadline = null;
+const pendingGamesCache = {};
 
 // ---------- UTILITIES ----------
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  if (id === 'screen-welcome') loadPendingGames();
 }
 
 function showToast(message, type = 'info') {
@@ -157,10 +159,12 @@ async function createGame() {
     currentGame = data.game;
     currentRoomCode = data.roomCode;
     isCreator = true;
+    pendingGamesCache[data.game.id] = data.game;
 
     document.getElementById('room-code-display').textContent = data.roomCode;
     document.getElementById('edit-opponent-id').value = opponentTelegramId;
     showScreen('screen-room-code');
+    applyLobbyState(data.game);
 
     // Update wallet after deposit (no change in free mode)
     const wallet = await api(`/api/wallet/${currentUser.id}`);
@@ -186,6 +190,23 @@ async function editOpponent() {
 
 // ---------- JOIN GAME ----------
 
+function renderRulesContent(game) {
+  const rulesContent = document.getElementById('rules-content');
+  const isFree = !!game.is_free;
+  rulesContent.innerHTML = `
+    <div class="rule-row"><span class="rule-label">Game</span><span class="rule-value">Rock Paper Scissors</span></div>
+    <div class="rule-row"><span class="rule-label">Mode</span><span class="rule-value">${isFree ? '🎉 FREE' : '💰 Paid'}</span></div>
+    <div class="rule-row"><span class="rule-label">Rounds</span><span class="rule-value">${game.rounds}</span></div>
+    <div class="rule-row"><span class="rule-label">Amount per Round</span><span class="rule-value">${isFree ? 'FREE' : game.amount_per_round + ' GHS'}</span></div>
+    <div class="rule-row"><span class="rule-label">Total Pot</span><span class="rule-value">${isFree ? 'FREE' : (game.rounds * game.amount_per_round * 2).toFixed(2) + ' GHS'}</span></div>
+    <div class="rule-row"><span class="rule-label">Your Deposit (Stake)</span><span class="rule-value">${isFree ? 'FREE' : (game.rounds * game.amount_per_round).toFixed(2) + ' GHS'}</span></div>
+    <div class="rule-row"><span class="rule-label">Seconds per Round</span><span class="rule-value">${game.round_seconds}s</span></div>
+    <div class="rule-row"><span class="rule-label">Payout Style</span><span class="rule-value">${game.payout_style === 'winner_takes_all' ? 'Winner Takes All' : 'Winner Per Game'}</span></div>
+    <div class="rule-row"><span class="rule-label">Resign Rule</span><span class="rule-value">${game.resign_rule === 'full_pot' ? 'Pay Full Pot' : 'Pay Per Game'}</span></div>
+    <div class="rule-row"><span class="rule-label">Resignation</span><span class="rule-value">No choice 2 rounds in a row</span></div>
+  `;
+}
+
 async function joinGame() {
   const roomCode = document.getElementById('room-code-input').value.trim().toUpperCase();
   if (!roomCode) {
@@ -200,20 +221,7 @@ async function joinGame() {
     isCreator = false;
 
     // Display game rules
-    const rulesContent = document.getElementById('rules-content');
-    const isFree = !!game.is_free;
-    rulesContent.innerHTML = `
-      <div class="rule-row"><span class="rule-label">Game</span><span class="rule-value">Rock Paper Scissors</span></div>
-      <div class="rule-row"><span class="rule-label">Mode</span><span class="rule-value">${isFree ? '🎉 FREE' : '💰 Paid'}</span></div>
-      <div class="rule-row"><span class="rule-label">Rounds</span><span class="rule-value">${game.rounds}</span></div>
-      <div class="rule-row"><span class="rule-label">Amount per Round</span><span class="rule-value">${isFree ? 'FREE' : game.amount_per_round + ' GHS'}</span></div>
-      <div class="rule-row"><span class="rule-label">Total Pot</span><span class="rule-value">${isFree ? 'FREE' : (game.rounds * game.amount_per_round * 2).toFixed(2) + ' GHS'}</span></div>
-      <div class="rule-row"><span class="rule-label">Your Deposit (Stake)</span><span class="rule-value">${isFree ? 'FREE' : (game.rounds * game.amount_per_round).toFixed(2) + ' GHS'}</span></div>
-      <div class="rule-row"><span class="rule-label">Seconds per Round</span><span class="rule-value">${game.round_seconds}s</span></div>
-      <div class="rule-row"><span class="rule-label">Payout Style</span><span class="rule-value">${game.payout_style === 'winner_takes_all' ? 'Winner Takes All' : 'Winner Per Game'}</span></div>
-      <div class="rule-row"><span class="rule-label">Resign Rule</span><span class="rule-value">${game.resign_rule === 'full_pot' ? 'Pay Full Pot' : 'Pay Per Game'}</span></div>
-      <div class="rule-row"><span class="rule-label">Resignation</span><span class="rule-value">No choice 2 rounds in a row</span></div>
-    `;
+    renderRulesContent(game);
 
     showScreen('screen-game-rules');
   } catch (err) {
@@ -241,6 +249,7 @@ async function processDeposit() {
     });
 
     currentGame = data.game;
+    pendingGamesCache[data.game.id] = data.game;
     const wallet = await api(`/api/wallet/${currentUser.id}`);
     updateWallet(wallet.balance);
 
@@ -249,25 +258,105 @@ async function processDeposit() {
 
     // Show lobby
     document.getElementById('lobby-room').textContent = currentRoomCode;
-    document.getElementById('lobby-status').textContent = 'Ready to Start';
-    document.getElementById('start-game-btn').style.display = 'block';
     showScreen('screen-lobby');
+    applyLobbyState(data.game);
   } catch (err) {
     showToast(err.message, 'error');
   }
 }
 
-async function startGame() {
-  try {
-    const data = await api(`/api/games/${currentRoomCode}/start`, {
-      method: 'POST',
-      body: JSON.stringify({ playerId: currentUser.id }),
-    });
-    currentGame = data.game;
-    showToast('Game started!', 'success');
-  } catch (err) {
-    showToast(err.message, 'error');
+function startGame() {
+  if (!currentGame) return;
+  socket.emit('player_ready', { gameId: currentGame.id });
+  applyLobbyState({ ...currentGame, status: 'ready' }, [currentUser.id]);
+}
+
+// ---------- LOBBY / PENDING GAMES ----------
+
+function applyLobbyState(game, readyPlayers = []) {
+  if (!game || !currentUser) return;
+  currentGame = game;
+  const iAmReady = readyPlayers.includes(currentUser.id);
+  let statusText, showStart;
+  if (game.status === 'pending') {
+    statusText = 'Waiting for opponent to join...';
+    showStart = false;
+  } else if (game.status === 'ready') {
+    showStart = !iAmReady;
+    statusText = iAmReady
+      ? 'You are ready. Waiting for opponent to press Start...'
+      : 'Opponent is in! Both players press Start to begin.';
+  } else {
+    return;
   }
+  [['start-game-btn', 'lobby-status'], ['creator-start-btn', 'creator-lobby-status']].forEach(([btnId, statusId]) => {
+    const btn = document.getElementById(btnId);
+    const st = document.getElementById(statusId);
+    if (btn) btn.style.display = showStart ? 'block' : 'none';
+    if (st) st.textContent = statusText;
+  });
+}
+
+async function loadPendingGames() {
+  if (!currentUser) return;
+  try {
+    const games = await api(`/api/games/player/${currentUser.id}/pending`);
+    const container = document.getElementById('pending-games');
+    if (!container) return;
+    games.forEach(g => { pendingGamesCache[g.id] = g; });
+    if (games.length === 0) {
+      container.innerHTML = '';
+      return;
+    }
+    container.innerHTML = '<h3 style="margin:18px 0 8px;font-size:16px;">My Games</h3>' + games.map(g => `
+      <div style="display:flex;align-items:center;gap:8px;padding:10px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;">
+        <span style="flex:1;font-size:14px;">
+          <strong>${g.room_code}</strong> · ${g.status === 'ready' ? 'Ready to start' : 'Waiting for opponent'}${g.is_free ? ' · FREE' : ''}
+        </span>
+        <button class="btn-small" onclick="enterPendingGame('${g.id}')">Enter</button>
+        ${g.creator_id === currentUser.id ? `<button class="btn-small" onclick="cancelPendingGame('${g.id}')">Delete</button>` : ''}
+      </div>
+    `).join('');
+  } catch (err) {
+    console.error('Failed to load pending games:', err);
+  }
+}
+
+function enterPendingGame(gameId) {
+  const game = pendingGamesCache[gameId];
+  if (!game || !currentUser) return;
+  currentGame = game;
+  currentRoomCode = game.room_code;
+  isCreator = game.creator_id === currentUser.id;
+  socket.emit('join_game_room', { gameId: game.id, userId: currentUser.id });
+
+  if (game.status === 'pending' && !isCreator) {
+    renderRulesContent(game);
+    showScreen('screen-game-rules');
+  } else if (isCreator) {
+    document.getElementById('room-code-display').textContent = game.room_code;
+    showScreen('screen-room-code');
+    applyLobbyState(game);
+  } else {
+    document.getElementById('lobby-room').textContent = game.room_code;
+    showScreen('screen-lobby');
+    applyLobbyState(game);
+  }
+}
+
+function cancelPendingGame(gameId) {
+  showModal('Delete this game?', 'The room will be closed and any deposited stakes refunded in full.', async () => {
+    try {
+      await api(`/api/games/${gameId}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({ playerId: currentUser.id }),
+      });
+      showToast('Game deleted. Stake refunded.', 'success');
+      loadPendingGames();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  });
 }
 
 // ---------- GAME PLAY ----------
@@ -320,7 +409,31 @@ socket.on('game_state', (data) => {
     document.getElementById('my-score').textContent = isCreator ? data.game.creator_score : data.game.opponent_score;
     document.getElementById('opp-score').textContent = isCreator ? data.game.opponent_score : data.game.creator_score;
     if (data.deadline) startTimer(data.deadline);
+  } else if (data.game.status === 'pending' || data.game.status === 'ready') {
+    applyLobbyState(data.game, data.readyPlayers || []);
   }
+});
+
+socket.on('lobby_update', (data) => {
+  applyLobbyState(data.game, data.readyPlayers || []);
+});
+
+socket.on('game_started', (data) => {
+  currentGame = data.game;
+  myChoice = null;
+  document.getElementById('current-round').textContent = 1;
+  document.getElementById('total-rounds').textContent = data.game.rounds;
+  document.getElementById('my-score').textContent = 0;
+  document.getElementById('opp-score').textContent = 0;
+  showToast('Both players ready — game started!', 'success');
+  showScreen('screen-play');
+});
+
+socket.on('game_cancelled', (data) => {
+  showToast(data.message || 'Game cancelled', 'error');
+  currentGame = null;
+  loadPendingGames();
+  showScreen('screen-welcome');
 });
 
 socket.on('round_started', (data) => {
@@ -467,7 +580,8 @@ async function loadTransactions() {
 
 // ---------- INIT ----------
 
-document.addEventListener('DOMContentLoaded', () => {
-  initUser();
+document.addEventListener('DOMContentLoaded', async () => {
+  await initUser();
   updateTotalPot();
+  loadPendingGames();
 });

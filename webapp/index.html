@@ -20,6 +20,7 @@
         <span>💰 Balance: <strong id="wallet-balance">0.00</strong> GHS</span>
         <button class="btn-small" onclick="showScreen('screen-wallet')">Wallet</button>
       </div>
+      <div id="pending-games"></div>
     </div>
 
     <!-- How To Use Screen -->
@@ -154,6 +155,10 @@
       <p>Share this room code with your friend:</p>
       <div class="room-code" id="room-code-display">------</div>
       <p class="hint">Your friend enters this code to join the game</p>
+      <div class="lobby-info">
+        <p>Status: <span id="creator-lobby-status">Waiting for opponent to join...</span></p>
+      </div>
+      <button class="btn-primary" id="creator-start-btn" onclick="startGame()" style="display:none">Start Game</button>
       <div class="form-group">
         <label>Edit Opponent's Telegram ID (if you made a mistake)</label>
         <input type="text" id="edit-opponent-id" placeholder="New Telegram ID">

@@ -241,6 +241,9 @@ app.post('/api/games/:roomCode/join', async (req, res) => {
       pot: totalPot,
     });
 
+    // Tell everyone in the room (including the creator) that the game is ready
+    io.to(`game_${game.id}`).emit('lobby_update', { game: updated });
+
     res.json({ game: updated, totalPot, yourStake: playerStake, isFree });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -270,18 +273,44 @@ app.post('/api/demo/credit', async (req, res) => {
   }
 });
 
-// Start game
-app.post('/api/games/:roomCode/start', async (req, res) => {
+// List a player's pending/ready (unplayed) games
+app.get('/api/games/player/:userId/pending', async (req, res) => {
+  if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
+  try {
+    const games = await db.getGamesByUserAndStatus(req.params.userId, ['pending', 'ready']);
+    res.json(games);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Creator deletes a pending/ready game. Stakes are refunded in full.
+app.post('/api/games/:id/cancel', async (req, res) => {
   if (!checkRateLimit(req.ip, 10)) return res.status(429).json({ error: 'Too many requests' });
   const { playerId } = req.body;
   try {
-    const game = await db.getGameByRoomCode(req.params.roomCode.toUpperCase());
+    const game = await db.getGameById(req.params.id);
     if (!game) return res.status(404).json({ error: 'Game not found' });
-    if (game.status !== 'ready') return res.status(400).json({ error: 'Game not ready to start' });
-    if (game.opponent_id !== playerId) return res.status(403).json({ error: 'Only the second player can start the game' });
+    if (game.creator_id !== playerId) return res.status(403).json({ error: 'Only the creator can delete this game' });
+    if (!['pending', 'ready'].includes(game.status)) return res.status(400).json({ error: 'Game already started or finished' });
 
-    const updated = await db.updateGame(game.id, { status: 'in_progress' });
-    res.json({ game: updated });
+    // Refund all deposited stakes for paid games
+    if (!game.is_free) {
+      const creatorStake = Number(game.amount_per_round) * Number(game.rounds);
+      await db.addFunds(game.creator_id, creatorStake);
+      await db.createTransaction({ user_id: game.creator_id, type: 'game_refund', amount: creatorStake, status: 'completed' });
+      if (game.status === 'ready' && game.opponent_id) {
+        await db.addFunds(game.opponent_id, creatorStake);
+        await db.createTransaction({ user_id: game.opponent_id, type: 'game_refund', amount: creatorStake, status: 'completed' });
+      }
+    }
+
+    // Notify anyone waiting in the room, then delete
+    io.to(`game_${game.id}`).emit('game_cancelled', { message: 'The creator deleted this game. Your stake was refunded.' });
+    activeGames.delete(game.id);
+    await db.deleteGame(game.id);
+
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -358,6 +387,50 @@ io.on('connection', (socket) => {
 
       // Notify the other player
       socket.to(`game_${gameId}`).emit('player_joined', { userId });
+      io.to(`game_${gameId}`).emit('lobby_update', {
+        game: state.game,
+        creatorConnected: !!state.creatorSocket,
+        opponentConnected: !!state.opponentSocket,
+        readyPlayers: Object.keys(state.readyPlayers || {}),
+      });
+    } catch (err) {
+      socket.emit('error', { message: err.message });
+    }
+  });
+
+  // A player presses "Start Game". The game only begins when BOTH players
+  // have pressed it AND both are connected to the game room.
+  socket.on('player_ready', async ({ gameId }) => {
+    try {
+      const state = activeGames.get(gameId);
+      if (!state) return socket.emit('error', { message: 'Game not found' });
+      const game = state.game;
+      if (game.status !== 'ready') return socket.emit('error', { message: 'Waiting for opponent to join first' });
+
+      const userId = socket.data.userId;
+      if (userId !== game.creator_id && userId !== game.opponent_id) {
+        return socket.emit('error', { message: 'You are not part of this game' });
+      }
+
+      state.readyPlayers = state.readyPlayers || {};
+      state.readyPlayers[userId] = true;
+
+      const bothReady = state.readyPlayers[game.creator_id] && state.readyPlayers[game.opponent_id];
+      const bothConnected = !!state.creatorSocket && !!state.opponentSocket;
+
+      if (bothReady && bothConnected) {
+        const updated = await db.updateGame(game.id, { status: 'in_progress' });
+        state.game = updated;
+        io.to(`game_${game.id}`).emit('game_started', { game: updated });
+        startRoundTimer(state);
+      } else {
+        io.to(`game_${game.id}`).emit('lobby_update', {
+          game,
+          creatorConnected: !!state.creatorSocket,
+          opponentConnected: !!state.opponentSocket,
+          readyPlayers: Object.keys(state.readyPlayers),
+        });
+      }
     } catch (err) {
       socket.emit('error', { message: err.message });
     }
@@ -420,6 +493,18 @@ io.on('connection', (socket) => {
 
   socket.on('disconnect', () => {
     console.log('Socket disconnected:', socket.id);
+    const { gameId } = socket.data || {};
+    if (!gameId) return;
+    const state = activeGames.get(gameId);
+    if (!state) return;
+    if (state.creatorSocket === socket.id) state.creatorSocket = null;
+    if (state.opponentSocket === socket.id) state.opponentSocket = null;
+    io.to(`game_${gameId}`).emit('lobby_update', {
+      game: state.game,
+      creatorConnected: !!state.creatorSocket,
+      opponentConnected: !!state.opponentSocket,
+      readyPlayers: Object.keys(state.readyPlayers || {}),
+    });
   });
 });
 

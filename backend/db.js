@@ -218,6 +218,27 @@ async function getGameById(id) {
   return res.rows[0] || null;
 }
 
+async function getGamesByUserAndStatus(userId, statuses) {
+  if (useMemory) {
+    return [...memoryStore.games.values()]
+      .filter(g => (g.creator_id === userId || g.opponent_id === userId) && statuses.includes(g.status))
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+  const res = await pool.query(
+    'SELECT * FROM games WHERE (creator_id = $1 OR opponent_id = $1) AND status = ANY($2) ORDER BY created_at DESC',
+    [userId, statuses]
+  );
+  return res.rows;
+}
+
+async function deleteGame(id) {
+  if (useMemory) {
+    return memoryStore.games.delete(id);
+  }
+  const res = await pool.query('DELETE FROM games WHERE id = $1', [id]);
+  return res.rowCount > 0;
+}
+
 async function updateGame(id, updates) {
   if (useMemory) {
     const game = memoryStore.games.get(id);
@@ -266,6 +287,8 @@ module.exports = {
   createGame,
   getGameByRoomCode,
   getGameById,
+  getGamesByUserAndStatus,
+  deleteGame,
   updateGame,
   createTransaction,
   getTransactionsByUser,
