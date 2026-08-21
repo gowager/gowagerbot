@@ -534,14 +534,17 @@ socket.on('round_result', (data) => {
   opponentHistory.push(isCreator ? data.opponentChoice : data.creatorChoice);
   updateOpponentHint();
 
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const myChoiceMade = isCreator ? data.creatorChoice : data.opponentChoice;
+  const oppChoiceMade = isCreator ? data.opponentChoice : data.creatorChoice;
   if (data.roundWinner === 'tie') {
-    resultEl.textContent = 'Tie!';
+    resultEl.textContent = `You chose ${cap(myChoiceMade)}, opponent chose ${cap(oppChoiceMade)} — It's a tie!`;
     resultEl.className = 'round-result tie';
   } else if (data.roundWinner === myId) {
-    resultEl.textContent = 'You won this round! 🎉';
+    resultEl.textContent = `You chose ${cap(myChoiceMade)}, opponent chose ${cap(oppChoiceMade)} — You win! 🎉`;
     resultEl.className = 'round-result win';
   } else {
-    resultEl.textContent = 'Opponent won this round!';
+    resultEl.textContent = `You chose ${cap(myChoiceMade)}, opponent chose ${cap(oppChoiceMade)} — You lose!`;
     resultEl.className = 'round-result lose';
   }
 });

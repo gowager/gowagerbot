@@ -248,6 +248,48 @@ h2 {
   font-size: 13px;
 }
 
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.game-card {
+  background: var(--tg-section);
+  border-radius: 14px;
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.game-card:active {
+  background: var(--tg-secondary-bg);
+}
+
+.game-card.locked {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.game-icon {
+  font-size: 30px;
+  margin-bottom: 8px;
+}
+
+.game-card h3 {
+  font-size: 15px;
+  margin: 0 0 4px;
+  color: var(--tg-text);
+}
+
+.game-card p {
+  font-size: 12px;
+  color: var(--tg-hint);
+  margin: 0 0 10px;
+}
+
 .game-list {
   display: flex;
   flex-direction: column;
