@@ -1,5 +1,5 @@
 // GoWager Web App - Frontend Logic
-const API_URL = 'http://localhost:3001';
+const API_URL = 'https://gowager-backend.onrender.com';
 const socket = io(API_URL);
 
 // State

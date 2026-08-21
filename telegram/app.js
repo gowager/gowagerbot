@@ -1,5 +1,5 @@
 // GoWager Telegram Mini App - Frontend Logic
-const API_URL = 'https://gowager-backend.vercel.app'; // Update with your deployed backend URL
+const API_URL = 'https://gowager-backend.onrender.com'; // Update with your deployed backend URL
 const socket = io(API_URL);
 
 // Telegram WebApp
