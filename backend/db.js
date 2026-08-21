@@ -69,24 +69,31 @@ async function createTables() {
       status TEXT DEFAULT 'pending',
       created_at TIMESTAMP DEFAULT NOW()
     );
-  `);
+   `);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS tg_username TEXT`);
 }
 
 // ---- User helpers ----
-async function getOrCreateUser(telegramId, username) {
+async function getOrCreateUser(telegramId, username, tgUsername) {
   if (useMemory) {
     const existing = [...memoryStore.users.values()].find(u => u.telegram_id === telegramId);
-    if (existing) return existing;
-    const user = { id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, telegram_id: telegramId, username: username || 'player' };
+    if (existing) {
+      if (tgUsername) existing.tg_username = tgUsername;
+      if (username) existing.username = username;
+      return existing;
+    }
+    const user = { id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, telegram_id: telegramId, username: username || 'player', tg_username: tgUsername || null };
     memoryStore.users.set(user.id, user);
     memoryStore.wallets.set(user.id, { user_id: user.id, balance: 0 });
     return user;
   }
   const res = await pool.query(
-    `INSERT INTO users (id, telegram_id, username) VALUES ($1, $2, $3)
-     ON CONFLICT (telegram_id) DO UPDATE SET username = EXCLUDED.username
+    `INSERT INTO users (id, telegram_id, username, tg_username) VALUES ($1, $2, $3, $4)
+     ON CONFLICT (telegram_id) DO UPDATE SET
+       username = EXCLUDED.username,
+       tg_username = COALESCE(EXCLUDED.tg_username, users.tg_username)
      RETURNING *`,
-    [`u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, telegramId, username]
+    [`u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, telegramId, username, tgUsername || null]
   );
   const user = res.rows[0];
   await pool.query(
@@ -101,6 +108,16 @@ async function getUserByTelegramId(telegramId) {
     return [...memoryStore.users.values()].find(u => u.telegram_id === telegramId) || null;
   }
   const res = await pool.query('SELECT * FROM users WHERE telegram_id = $1', [telegramId]);
+  return res.rows[0] || null;
+}
+
+async function getUserByUsername(handle) {
+  const h = String(handle || '').trim().replace(/^@/, '').toLowerCase();
+  if (!h) return null;
+  if (useMemory) {
+    return [...memoryStore.users.values()].find(u => u.tg_username && u.tg_username.toLowerCase() === h) || null;
+  }
+  const res = await pool.query('SELECT * FROM users WHERE LOWER(tg_username) = $1', [h]);
   return res.rows[0] || null;
 }
 
@@ -241,6 +258,7 @@ module.exports = {
   initDb,
   getOrCreateUser,
   getUserByTelegramId,
+  getUserByUsername,
   getUserById,
   getWallet,
   addFunds,

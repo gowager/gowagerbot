@@ -82,12 +82,12 @@ app.get('/api/health', (req, res) => {
 // Register / login user
 app.post('/api/users', async (req, res) => {
   if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
-  const { telegramId, username } = req.body;
+  const { telegramId, username, tgUsername } = req.body;
   if (!telegramId || typeof telegramId !== 'string' || telegramId.length > 100) {
     return res.status(400).json({ error: 'Invalid telegram ID' });
   }
   try {
-    const user = await db.getOrCreateUser(telegramId, username);
+    const user = await db.getOrCreateUser(telegramId, username, tgUsername);
     const wallet = await db.getWallet(user.id);
     res.json({ user, wallet });
   } catch (err) {
@@ -119,6 +119,17 @@ app.get('/api/wallet/:userId', async (req, res) => {
   }
 });
 
+// Resolve an opponent input that may be a numeric Telegram ID ("123456789")
+// or a Telegram username ("@axe773" / "axe773")
+async function findUserByIdOrUsername(input) {
+  const raw = String(input || '').trim();
+  if (!raw) return null;
+  if (/^\d+$/.test(raw)) {
+    return await db.getUserByTelegramId(raw);
+  }
+  return await db.getUserByUsername(raw);
+}
+
 // Create game
 app.post('/api/games', async (req, res) => {
   if (!checkRateLimit(req.ip, 10)) return res.status(429).json({ error: 'Too many requests' });
@@ -137,8 +148,8 @@ app.post('/api/games', async (req, res) => {
     const creator = await db.getUserById(creatorId);
     if (!creator) return res.status(404).json({ error: 'Creator not found' });
 
-    const opponent = await db.getUserByTelegramId(opponentTelegramId);
-    if (!opponent) return res.status(404).json({ error: 'Opponent not found. They must register first.' });
+    const opponent = await findUserByIdOrUsername(opponentTelegramId);
+    if (!opponent) return res.status(404).json({ error: 'Opponent not found. They must open the GoWager app (Telegram Mini App) once to register.' });
     if (opponent.id === creator.id) return res.status(400).json({ error: 'Cannot play against yourself' });
 
     // For free games: no deposits, no pot. For paid games: each player deposits

@@ -80,11 +80,13 @@ async function api(path, options = {}) {
 async function initUser() {
   let telegramId;
   let username = 'Player';
+  let tgUsername = null;
 
   // Get user from Telegram WebApp
   if (tg && tg.initDataUnsafe?.user) {
     telegramId = String(tg.initDataUnsafe.user.id);
     username = tg.initDataUnsafe.user.first_name || 'Player';
+    tgUsername = tg.initDataUnsafe.user.username || null;
   } else {
     // Fallback for testing outside Telegram
     telegramId = localStorage.getItem('gowager_telegram_id');
@@ -98,7 +100,7 @@ async function initUser() {
   try {
     const data = await api('/api/users', {
       method: 'POST',
-      body: JSON.stringify({ telegramId, username }),
+      body: JSON.stringify({ telegramId, username, tgUsername }),
     });
     currentUser = data.user;
     updateWallet(data.wallet.balance);
@@ -170,7 +172,7 @@ async function createGame() {
   const resignRule = document.getElementById('resign-rule').value;
 
   if (!opponentTelegramId) {
-    showToast('Enter your opponent\'s Telegram ID', 'error');
+    showToast('Enter your opponent\'s Telegram ID or @username', 'error');
     return;
   }
   if (rounds < 1 || rounds > 25) {

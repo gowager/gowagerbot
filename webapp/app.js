@@ -127,7 +127,7 @@ async function createGame() {
   const resignRule = document.getElementById('resign-rule').value;
 
   if (!opponentTelegramId) {
-    showToast('Please enter your opponent\'s Telegram ID', 'error');
+    showToast('Please enter your opponent\'s Telegram ID or @username', 'error');
     return;
   }
   if (rounds < 1 || rounds > 25) {
