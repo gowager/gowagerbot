@@ -129,7 +129,7 @@ function selectGame(game) {
 
 function startFreePlay() {
   isFreeMode = true;
-  showScreen('screen-game-options');
+  showScreen('screen-games');
   showToast('Free mode! No money involved. 🎉', 'success');
 }
 
