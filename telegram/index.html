@@ -133,6 +133,18 @@
       </div>
     </div>
 
+    <!-- Red or Black Options -->
+    <div id="screen-rb-options" class="screen">
+      <div class="header">
+        <button class="back-btn" onclick="showScreen('screen-games')">←</button>
+        <h2>Red or Black 🃏</h2>
+      </div>
+      <div class="options">
+        <button class="btn-primary btn-big" onclick="showScreen('screen-create-rb')">➕ Create Game</button>
+        <button class="btn-outline btn-big" onclick="showScreen('screen-join-game')">🔗 Join Game</button>
+      </div>
+    </div>
+
     <!-- Create Game -->
     <div id="screen-create-game" class="screen">
       <div class="header">
@@ -201,7 +213,7 @@
     <!-- Red or Black Create -->
     <div id="screen-create-rb" class="screen">
       <div class="header">
-        <button class="back-btn" onclick="showScreen('screen-games')">←</button>
+        <button class="back-btn" onclick="showScreen('screen-rb-options')">←</button>
         <h2>Red or Black</h2>
       </div>
       <div class="form">
@@ -228,7 +240,6 @@
         <div class="lobby-row"><span>Total Pot</span><strong><span id="rb-pot">50.00</span> GHS</strong></div>
         <div class="lobby-row"><span>Your Deposit (your stake)</span><strong><span id="rb-share">25.00</span> GHS</strong></div>
         <button class="btn-primary" onclick="createRbGame()">Create Game & Deposit</button>
-        <button class="btn-outline" onclick="showScreen('screen-join-game')">Join Game with Room Code</button>
       </div>
     </div>
 
@@ -284,7 +295,7 @@
     <!-- Join Game -->
     <div id="screen-join-game" class="screen">
       <div class="header">
-        <button class="back-btn" onclick="showScreen('screen-game-options')">←</button>
+        <button class="back-btn" onclick="backToOptions()">←</button>
         <h2>Join Game</h2>
       </div>
       <div class="form">

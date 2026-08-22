@@ -121,15 +121,23 @@ function updateWallet(balance) {
 
 // ---------- GAME SELECTION ----------
 
+let lastSelectedGame = null;
+
 function selectGame(game) {
+  lastSelectedGame = game;
   if (game === 'rps') {
     showScreen('screen-game-options');
   } else if (game === 'redblack') {
     rbSelectedRole = null;
     document.getElementById('rb-role-dealer-btn').style.opacity = '1';
     document.getElementById('rb-role-player-btn').style.opacity = '1';
-    showScreen('screen-create-rb');
+    showScreen('screen-rb-options');
   }
+}
+
+// Join screen back button returns to whichever game's options screen sent us there
+function backToOptions() {
+  showScreen(lastSelectedGame === 'redblack' ? 'screen-rb-options' : 'screen-game-options');
 }
 
 // ---------- RED OR BLACK ----------

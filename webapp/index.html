@@ -104,6 +104,15 @@
       <button class="btn-back" onclick="showScreen('screen-games')">← Back</button>
     </div>
 
+    <!-- Red or Black Options Screen (Create/Join) -->
+    <div id="screen-rb-options" class="screen">
+      <h2>Red or Black 🃏</h2>
+      <p class="subtitle">What would you like to do?</p>
+      <button class="btn-primary btn-large" onclick="showScreen('screen-create-rb')">Create Game</button>
+      <button class="btn-secondary btn-large" onclick="showScreen('screen-join-game')">Join Game</button>
+      <button class="btn-back" onclick="showScreen('screen-games')">← Back</button>
+    </div>
+
     <!-- Create Game Screen -->
     <div id="screen-create-game" class="screen">
       <h2>Create Game</h2>
@@ -184,8 +193,7 @@
         <p class="pot-hint">Bet per card × cards × 2 players - winner takes the pot minus 5% fee</p>
       </div>
       <button class="btn-primary" onclick="createRbGame()">Create Game & Deposit</button>
-      <button class="btn-secondary" onclick="showScreen('screen-join-game')">Join Game with Room Code</button>
-      <button class="btn-back" onclick="showScreen('screen-games')">← Back</button>
+      <button class="btn-back" onclick="showScreen('screen-rb-options')">← Back</button>
     </div>
 
     <!-- Red or Black Play Screen -->
@@ -240,7 +248,7 @@
         <input type="text" id="room-code-input" placeholder="e.g. A1B2C3" maxlength="6">
       </div>
       <button class="btn-primary" onclick="joinGame()">Find Game</button>
-      <button class="btn-back" onclick="showScreen('screen-game-options')">← Back</button>
+      <button class="btn-back" onclick="backToOptions()">← Back</button>
     </div>
 
     <!-- Game Rules Review Screen -->
