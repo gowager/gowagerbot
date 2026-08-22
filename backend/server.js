@@ -518,6 +518,9 @@ io.on('connection', (socket) => {
 
       state.rb.pickedCard = state.rb.hand.splice(idx, 1)[0];
       io.to(`game_${gameId}`).emit('rb_dealer_picked', {});
+      // Dealer sees their own picked card face-up on the table; the player does not
+      const dealerSock = rbSockOf(state, dealerId);
+      if (dealerSock) io.to(dealerSock).emit('rb_dealer_card', { card: state.rb.pickedCard });
     } catch (err) {
       socket.emit('error', { message: err.message });
     }

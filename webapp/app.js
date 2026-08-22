@@ -183,12 +183,17 @@ function rbAmIDealer(game) {
 
 function renderRbHand(hand) {
   const el = document.getElementById('rb-hand');
-  el.innerHTML = hand.map((c, i) => `<button onclick="rbPick(${i})">🂠</button>`).join('');
+  el.innerHTML = hand.map((c, i) => `
+    <button data-idx="${i}" onclick="rbPick(${i})" class="${c.color === 'red' ? 'rb-face-red' : 'rb-face-black'}">
+      <span class="rb-face-rank">${c.rank}</span>
+      <span class="rb-face-suit">${c.suit}</span>
+    </button>`).join('');
 }
 
 function rbPick(cardIndex) {
   socket.emit('rb_dealer_pick', { gameId: currentGame.id, cardIndex });
-  document.getElementById('rb-hand').innerHTML = '';
+  const btn = document.querySelector(`#rb-hand button[data-idx="${cardIndex}"]`);
+  if (btn) btn.remove();
 }
 
 function rbGuess(color) {
@@ -621,6 +626,13 @@ socket.on('rb_dealer_picked', () => {
     document.getElementById('rb-red-btn').disabled = false;
     document.getElementById('rb-black-btn').disabled = false;
   }
+});
+
+// Dealer's own picked card appears face-up on their screen only
+socket.on('rb_dealer_card', (data) => {
+  const c = data.card;
+  document.getElementById('rb-card-area').innerHTML =
+    `<div class="rb-card ${c.color}">${c.rank}<br>${c.suit}</div>`;
 });
 
 socket.on('rb_round_result', (data) => {
