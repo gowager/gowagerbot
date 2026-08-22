@@ -142,8 +142,11 @@ function setRbRole(role) {
 
 function updateRbPot() {
   const bet = parseInt(document.getElementById('rb-bet').value) || 1;
-  const el = document.getElementById('rb-pot');
-  if (el) el.textContent = (bet * 2).toFixed(2);
+  const cards = parseInt(document.getElementById('rb-cards').value) || 1;
+  const potEl = document.getElementById('rb-pot');
+  const shareEl = document.getElementById('rb-share');
+  if (potEl) potEl.textContent = (bet * cards * 2).toFixed(2);
+  if (shareEl) shareEl.textContent = (bet * cards).toFixed(2);
 }
 
 async function createRbGame() {
@@ -154,7 +157,7 @@ async function createRbGame() {
   if (!opponentTelegramId) return showToast('Enter your opponent\'s Telegram ID or @username', 'error');
   if (!rbSelectedRole) return showToast('Choose your role: Dealer or Player', 'error');
   if (cards < 1 || cards > 52) return showToast('Cards must be between 1 and 52', 'error');
-  if (!isFreeMode && (bet < 1 || bet > 20)) return showToast('Bet must be between 1 and 20 GHS per game', 'error');
+  if (!isFreeMode && (bet < 1 || bet > 20)) return showToast('Bet must be between 1 and 20 GHS per card', 'error');
 
   try {
     const data = await api('/api/games', {
@@ -332,15 +335,16 @@ function renderRulesContent(game) {
   const rulesContent = document.getElementById('rules-content');
   const isFree = !!game.is_free;
   const isRb = game.game_type === 'redblack';
-  const stake = isRb ? Number(game.amount_per_round) : Number(game.rounds) * Number(game.amount_per_round);
+  // Stake is the same for both games: rounds (cards) × amount per round
+  const stake = Number(game.rounds) * Number(game.amount_per_round);
   let rows;
   if (isRb) {
     rows = `
       <div class="rule-row"><span class="rule-label">Game</span><span class="rule-value">Red or Black 🃏</span></div>
       <div class="rule-row"><span class="rule-label">Mode</span><span class="rule-value">${isFree ? '🎉 FREE' : '💰 Paid'}</span></div>
       <div class="rule-row"><span class="rule-label">Cards</span><span class="rule-value">${game.rounds}</span></div>
-      <div class="rule-row"><span class="rule-label">Bet per Game</span><span class="rule-value">${isFree ? 'FREE' : Number(game.amount_per_round).toFixed(2) + ' GHS'}</span></div>
-      <div class="rule-row"><span class="rule-label">Total Pot</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) * 2 + ' GHS'}</span></div>
+      <div class="rule-row"><span class="rule-label">Bet per Card</span><span class="rule-value">${isFree ? 'FREE' : game.amount_per_round + ' GHS'}</span></div>
+      <div class="rule-row"><span class="rule-label">Total Pot</span><span class="rule-value">${isFree ? 'FREE' : (stake * 2).toFixed(2) + ' GHS'}</span></div>
       <div class="rule-row"><span class="rule-label">Your Deposit (Stake)</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) + ' GHS'}</span></div>
       <div class="rule-row"><span class="rule-label">Creator's Role</span><span class="rule-value">${game.creator_role === 'dealer' ? '🎩 Dealer' : '🎯 Player'}</span></div>
       <div class="rule-row"><span class="rule-label">How It Works</span><span class="rule-value">Dealer picks a hidden card - player guesses Red or Black</span></div>
@@ -351,7 +355,7 @@ function renderRulesContent(game) {
       <div class="rule-row"><span class="rule-label">Mode</span><span class="rule-value">${isFree ? '🎉 FREE' : '💰 Paid'}</span></div>
       <div class="rule-row"><span class="rule-label">Rounds</span><span class="rule-value">${game.rounds}</span></div>
       <div class="rule-row"><span class="rule-label">Amount per Round</span><span class="rule-value">${isFree ? 'FREE' : game.amount_per_round + ' GHS'}</span></div>
-      <div class="rule-row"><span class="rule-label">Total Pot</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) * 2 + ' GHS'}</span></div>
+      <div class="rule-row"><span class="rule-label">Total Pot</span><span class="rule-value">${isFree ? 'FREE' : (stake * 2).toFixed(2) + ' GHS'}</span></div>
       <div class="rule-row"><span class="rule-label">Your Deposit (Stake)</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) + ' GHS'}</span></div>
       <div class="rule-row"><span class="rule-label">Time/Round</span><span class="rule-value">${game.round_seconds}s</span></div>
       <div class="rule-row"><span class="rule-label">Payout</span><span class="rule-value">${game.payout_style === 'winner_takes_all' ? 'Winner Takes All' : 'Per Game'}</span></div>
@@ -389,10 +393,8 @@ async function agreeAndDeposit() {
     await processDeposit();
     return;
   }
-  // RPS: rounds × amount per round. Red or Black: single bet per game.
-  const yourStake = currentGame.game_type === 'redblack'
-    ? Number(currentGame.amount_per_round)
-    : currentGame.rounds * currentGame.amount_per_round;
+  // Each player deposits their full stake: rounds (cards) × amount per round
+  const yourStake = currentGame.rounds * currentGame.amount_per_round;
   document.getElementById('deposit-amount').textContent = yourStake.toFixed(2) + ' GHS';
   showScreen('screen-deposit');
 }
@@ -837,4 +839,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateTotalPot();
   loadPendingGames();
   document.getElementById('rb-bet').addEventListener('input', updateRbPot);
+  const rbCardsInput = document.getElementById('rb-cards');
+  if (rbCardsInput) rbCardsInput.addEventListener('input', updateRbPot);
 });

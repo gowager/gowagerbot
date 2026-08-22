@@ -172,9 +172,9 @@ app.post('/api/games', async (req, res) => {
     if (!opponent) return res.status(404).json({ error: 'Opponent not found. They must open the GoWager app (Telegram Mini App) once to register.' });
     if (opponent.id === creator.id) return res.status(400).json({ error: 'Cannot play against yourself' });
 
-    // For free games: no deposits, no pot. RPS: each player deposits
-    // `rounds × amountPerRound`. Red or Black: single bet per game.
-    const playerStake = free ? 0 : type === 'redblack' ? Number(amountPerRound) : Number(amountPerRound) * Number(rounds);
+    // For free games: no deposits, no pot. Each player deposits their full
+    // stake: rounds (cards) × amountPerRound. Total pot = 2 × playerStake.
+    const playerStake = free ? 0 : Number(amountPerRound) * Number(rounds);
     const totalPot = free ? 0 : playerStake * 2;
 
     if (!free) {
@@ -238,8 +238,8 @@ app.post('/api/games/:roomCode/join', async (req, res) => {
     if (game.opponent_id !== playerId) return res.status(403).json({ error: 'You are not the invited opponent' });
 
     const isFree = !!game.is_free;
-    // RPS: player 2 deposits rounds × amount. Red or Black: single bet per game.
-    const playerStake = isFree ? 0 : game.game_type === 'redblack' ? Number(game.amount_per_round) : Number(game.amount_per_round) * Number(game.rounds);
+    // Each player deposits their full stake: rounds (cards) × amount per round
+    const playerStake = isFree ? 0 : Number(game.amount_per_round) * Number(game.rounds);
 
     if (!isFree) {
       const wallet = await db.getWallet(playerId);
