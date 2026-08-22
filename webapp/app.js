@@ -282,18 +282,35 @@ async function editOpponent() {
 function renderRulesContent(game) {
   const rulesContent = document.getElementById('rules-content');
   const isFree = !!game.is_free;
-  rulesContent.innerHTML = `
-    <div class="rule-row"><span class="rule-label">Game</span><span class="rule-value">Rock Paper Scissors</span></div>
-    <div class="rule-row"><span class="rule-label">Mode</span><span class="rule-value">${isFree ? '🎉 FREE' : '💰 Paid'}</span></div>
-    <div class="rule-row"><span class="rule-label">Rounds</span><span class="rule-value">${game.rounds}</span></div>
-    <div class="rule-row"><span class="rule-label">Amount per Round</span><span class="rule-value">${isFree ? 'FREE' : game.amount_per_round + ' GHS'}</span></div>
-    <div class="rule-row"><span class="rule-label">Total Pot</span><span class="rule-value">${isFree ? 'FREE' : (game.rounds * game.amount_per_round * 2).toFixed(2) + ' GHS'}</span></div>
-    <div class="rule-row"><span class="rule-label">Your Deposit (Stake)</span><span class="rule-value">${isFree ? 'FREE' : (game.rounds * game.amount_per_round).toFixed(2) + ' GHS'}</span></div>
-    <div class="rule-row"><span class="rule-label">Seconds per Round</span><span class="rule-value">${game.round_seconds}s</span></div>
-    <div class="rule-row"><span class="rule-label">Payout Style</span><span class="rule-value">${game.payout_style === 'winner_takes_all' ? 'Winner Takes All' : 'Winner Per Game'}</span></div>
-    <div class="rule-row"><span class="rule-label">Resign Rule</span><span class="rule-value">${game.resign_rule === 'full_pot' ? 'Pay Full Pot' : 'Pay Per Game'}</span></div>
-    <div class="rule-row"><span class="rule-label">Resignation</span><span class="rule-value">No choice 2 rounds in a row</span></div>
-  `;
+  const isRb = game.game_type === 'redblack';
+  const stake = isRb ? Number(game.amount_per_round) : Number(game.rounds) * Number(game.amount_per_round);
+  let rows;
+  if (isRb) {
+    rows = `
+      <div class="rule-row"><span class="rule-label">Game</span><span class="rule-value">Red or Black 🃏</span></div>
+      <div class="rule-row"><span class="rule-label">Mode</span><span class="rule-value">${isFree ? '🎉 FREE' : '💰 Paid'}</span></div>
+      <div class="rule-row"><span class="rule-label">Cards</span><span class="rule-value">${game.rounds}</span></div>
+      <div class="rule-row"><span class="rule-label">Bet per Game</span><span class="rule-value">${isFree ? 'FREE' : Number(game.amount_per_round).toFixed(2) + ' GHS'}</span></div>
+      <div class="rule-row"><span class="rule-label">Total Pot</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) * 2 + ' GHS'}</span></div>
+      <div class="rule-row"><span class="rule-label">Your Deposit (Stake)</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) + ' GHS'}</span></div>
+      <div class="rule-row"><span class="rule-label">Creator's Role</span><span class="rule-value">${game.creator_role === 'dealer' ? '🎩 Dealer' : '🎯 Player'}</span></div>
+      <div class="rule-row"><span class="rule-label">How It Works</span><span class="rule-value">Dealer picks a hidden card - player guesses Red or Black</span></div>
+    `;
+  } else {
+    rows = `
+      <div class="rule-row"><span class="rule-label">Game</span><span class="rule-value">Rock Paper Scissors</span></div>
+      <div class="rule-row"><span class="rule-label">Mode</span><span class="rule-value">${isFree ? '🎉 FREE' : '💰 Paid'}</span></div>
+      <div class="rule-row"><span class="rule-label">Rounds</span><span class="rule-value">${game.rounds}</span></div>
+      <div class="rule-row"><span class="rule-label">Amount per Round</span><span class="rule-value">${isFree ? 'FREE' : game.amount_per_round + ' GHS'}</span></div>
+      <div class="rule-row"><span class="rule-label">Total Pot</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) * 2 + ' GHS'}</span></div>
+      <div class="rule-row"><span class="rule-label">Your Deposit (Stake)</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) + ' GHS'}</span></div>
+      <div class="rule-row"><span class="rule-label">Seconds per Round</span><span class="rule-value">${game.round_seconds}s</span></div>
+      <div class="rule-row"><span class="rule-label">Payout Style</span><span class="rule-value">${game.payout_style === 'winner_takes_all' ? 'Winner Takes All' : 'Winner Per Game'}</span></div>
+      <div class="rule-row"><span class="rule-label">Resign Rule</span><span class="rule-value">${game.resign_rule === 'full_pot' ? 'Pay Full Pot' : 'Pay Per Game'}</span></div>
+      <div class="rule-row"><span class="rule-label">Resignation</span><span class="rule-value">No choice 2 rounds in a row</span></div>
+    `;
+  }
+  rulesContent.innerHTML = rows;
 }
 
 async function joinGame() {
@@ -324,8 +341,10 @@ async function agreeAndDeposit() {
     await processDeposit();
     return;
   }
-  // Each player deposits their full stake: rounds × amount per round
-  const yourStake = currentGame.rounds * currentGame.amount_per_round;
+  // RPS: rounds × amount per round. Red or Black: single bet per game.
+  const yourStake = currentGame.game_type === 'redblack'
+    ? Number(currentGame.amount_per_round)
+    : currentGame.rounds * currentGame.amount_per_round;
   document.getElementById('deposit-amount').textContent = yourStake.toFixed(2);
   showScreen('screen-deposit');
 }
