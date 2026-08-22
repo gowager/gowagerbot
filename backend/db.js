@@ -71,6 +71,7 @@ async function createTables() {
     );
    `);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS tg_username TEXT`);
+  await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS creator_role TEXT`);
 }
 
 // ---- User helpers ----
@@ -175,7 +176,8 @@ async function createGame(gameData) {
     room_code: gameData.room_code,
     creator_id: gameData.creator_id,
     opponent_id: gameData.opponent_id,
-    game_type: 'rps',
+    game_type: gameData.game_type || 'rps',
+    creator_role: gameData.creator_role || null,
     rounds: gameData.rounds,
     amount_per_round: gameData.amount_per_round,
     round_seconds: gameData.round_seconds,
@@ -195,9 +197,9 @@ async function createGame(gameData) {
     return game;
   }
   const res = await pool.query(
-    `INSERT INTO games (id, room_code, creator_id, opponent_id, game_type, rounds, amount_per_round, round_seconds, payout_style, resign_rule, resign_definition, is_free, status, current_round, creator_score, opponent_score, pot)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17) RETURNING *`,
-    [game.id, game.room_code, game.creator_id, game.opponent_id, game.game_type, game.rounds, game.amount_per_round, game.round_seconds, game.payout_style, game.resign_rule, game.resign_definition, game.is_free, game.status, game.current_round, game.creator_score, game.opponent_score, game.pot]
+    `INSERT INTO games (id, room_code, creator_id, opponent_id, game_type, creator_role, rounds, amount_per_round, round_seconds, payout_style, resign_rule, resign_definition, is_free, status, current_round, creator_score, opponent_score, pot)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING *`,
+    [game.id, game.room_code, game.creator_id, game.opponent_id, game.game_type, game.creator_role, game.rounds, game.amount_per_round, game.round_seconds, game.payout_style, game.resign_rule, game.resign_definition, game.is_free, game.status, game.current_round, game.creator_score, game.opponent_score, game.pot]
   );
   return res.rows[0];
 }

@@ -903,3 +903,50 @@ h2 {
 .modal-buttons .btn-outline {
   flex: 1;
 }
+/* ---------- Red or Black ---------- */
+.rb-card {
+  width: 110px;
+  height: 160px;
+  border-radius: 12px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 38px;
+  font-weight: bold;
+  line-height: 1.2;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+.rb-card.red { color: #c0392b; }
+.rb-card.black { color: var(--tg-text); }
+.rb-card-face-down {
+  width: 110px;
+  height: 160px;
+  border-radius: 12px;
+  background: #2f5cc4;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 52px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+.rb-hand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+.rb-hand button {
+  width: 54px;
+  height: 78px;
+  border-radius: 8px;
+  border: none;
+  background: #2f5cc4;
+  color: #ffffff;
+  font-size: 26px;
+  cursor: pointer;
+}
+.rb-hand button:active { transform: scale(0.95); }

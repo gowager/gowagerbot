@@ -68,6 +68,14 @@ function validateResignRule(rule) {
   return ['full_pot', 'per_game'].includes(rule);
 }
 
+function validateGameType(t) {
+  return ['rps', 'redblack'].includes(t);
+}
+
+function validateCreatorRole(r) {
+  return ['dealer', 'player'].includes(r);
+}
+
 function generateRoomCode() {
   return crypto.randomBytes(3).toString('hex').toUpperCase();
 }
@@ -119,28 +127,40 @@ app.get('/api/wallet/:userId', async (req, res) => {
   }
 });
 
-// Resolve an opponent input that may be a numeric Telegram ID ("123456789")
-// or a Telegram username ("@axe773" / "axe773")
+// Resolve an opponent input that may be a numeric Telegram ID ("123456789"),
+// a Telegram username ("@axe773" / "axe773"), or a web-app generated ID
 async function findUserByIdOrUsername(input) {
   const raw = String(input || '').trim();
   if (!raw) return null;
   if (/^\d+$/.test(raw)) {
     return await db.getUserByTelegramId(raw);
   }
-  return await db.getUserByUsername(raw);
+  const byHandle = await db.getUserByUsername(raw);
+  if (byHandle) return byHandle;
+  return await db.getUserByTelegramId(raw);
 }
 
 // Create game
 app.post('/api/games', async (req, res) => {
   if (!checkRateLimit(req.ip, 10)) return res.status(429).json({ error: 'Too many requests' });
-  const { creatorId, opponentTelegramId, rounds, amountPerRound, roundSeconds, payoutStyle, resignRule, isFree } = req.body;
+  const { creatorId, opponentTelegramId, rounds, amountPerRound, roundSeconds, payoutStyle, resignRule, isFree, gameType, creatorRole } = req.body;
   const free = !!isFree;
+  const type = gameType || 'rps';
 
   // Validate all inputs
   if (!creatorId || !opponentTelegramId) return res.status(400).json({ error: 'Missing player IDs' });
-  if (!validateRounds(rounds)) return res.status(400).json({ error: 'Rounds must be 1-25' });
-  if (!free && !validateAmount(amountPerRound)) return res.status(400).json({ error: 'Amount must be 1-50 GHS' });
-  if (!validateRoundSeconds(roundSeconds)) return res.status(400).json({ error: 'Round seconds must be 30, 45, or 60' });
+  if (!validateGameType(type)) return res.status(400).json({ error: 'Invalid game type' });
+  if (type === 'redblack') {
+    if (!validateCreatorRole(creatorRole)) return res.status(400).json({ error: 'Choose to be Dealer or Player' });
+    if (!validateRounds(rounds) || Number(rounds) > 52) return res.status(400).json({ error: 'Cards must be 1-52' });
+    if (!free && !validateAmount(amountPerRound) || (free === false && Number(amountPerRound) > 20)) {
+      return res.status(400).json({ error: 'Bet must be 1-20 GHS per game' });
+    }
+  } else {
+    if (!validateRounds(rounds)) return res.status(400).json({ error: 'Rounds must be 1-25' });
+    if (!free && !validateAmount(amountPerRound)) return res.status(400).json({ error: 'Amount must be 1-50 GHS' });
+  }
+  if (!free && !validateRoundSeconds(roundSeconds)) return res.status(400).json({ error: 'Round seconds must be 30, 45, or 60' });
   if (!validatePayoutStyle(payoutStyle)) return res.status(400).json({ error: 'Invalid payout style' });
   if (!validateResignRule(resignRule)) return res.status(400).json({ error: 'Invalid resign rule' });
 
@@ -152,9 +172,9 @@ app.post('/api/games', async (req, res) => {
     if (!opponent) return res.status(404).json({ error: 'Opponent not found. They must open the GoWager app (Telegram Mini App) once to register.' });
     if (opponent.id === creator.id) return res.status(400).json({ error: 'Cannot play against yourself' });
 
-    // For free games: no deposits, no pot. For paid games: each player deposits
-    // `rounds × amountPerRound` (their full stake). Total pot = 2 × playerStake.
-    const playerStake = free ? 0 : Number(amountPerRound) * Number(rounds);
+    // For free games: no deposits, no pot. RPS: each player deposits
+    // `rounds × amountPerRound`. Red or Black: single bet per game.
+    const playerStake = free ? 0 : type === 'redblack' ? Number(amountPerRound) : Number(amountPerRound) * Number(rounds);
     const totalPot = free ? 0 : playerStake * 2;
 
     if (!free) {
@@ -178,11 +198,13 @@ app.post('/api/games', async (req, res) => {
       room_code: roomCode,
       creator_id: creator.id,
       opponent_id: opponent.id,
+      game_type: type,
+      creator_role: type === 'redblack' ? creatorRole : null,
       rounds: Number(rounds),
       amount_per_round: free ? 0 : Number(amountPerRound),
       round_seconds: Number(roundSeconds),
-      payout_style: payoutStyle,
-      resign_rule: resignRule,
+      payout_style: type === 'redblack' ? 'winner_takes_all' : payoutStyle,
+      resign_rule: type === 'redblack' ? 'full_pot' : resignRule,
       resign_definition: '2_games_in_a_row',
       is_free: free,
     });
@@ -216,8 +238,8 @@ app.post('/api/games/:roomCode/join', async (req, res) => {
     if (game.opponent_id !== playerId) return res.status(403).json({ error: 'You are not the invited opponent' });
 
     const isFree = !!game.is_free;
-    // Player 2 deposits rounds × amount (their full stake) unless free
-    const playerStake = isFree ? 0 : Number(game.amount_per_round) * Number(game.rounds);
+    // RPS: player 2 deposits rounds × amount. Red or Black: single bet per game.
+    const playerStake = isFree ? 0 : game.game_type === 'redblack' ? Number(game.amount_per_round) : Number(game.amount_per_round) * Number(game.rounds);
 
     if (!isFree) {
       const wallet = await db.getWallet(playerId);
@@ -388,6 +410,13 @@ io.on('connection', (socket) => {
       // Send current game state to the joining player
       socket.emit('game_state', { game: state.game, round: state.game.current_round, deadline: state.roundDeadline });
 
+      // Re-sync Red or Black mid-game state for returning players
+      if (state.game.status === 'in_progress' && state.game.game_type === 'redblack' && state.rb) {
+        const { dealerId, playerId } = rbRoles(state.game);
+        if (userId === dealerId) socket.emit('rb_your_hand', { hand: state.rb.hand });
+        else socket.emit(state.rb.pickedCard ? 'rb_dealer_picked' : 'rb_wait_dealer', {});
+      }
+
       // Notify the other player
       socket.to(`game_${gameId}`).emit('player_joined', { userId });
       io.to(`game_${gameId}`).emit('lobby_update', {
@@ -425,7 +454,8 @@ io.on('connection', (socket) => {
         const updated = await db.updateGame(game.id, { status: 'in_progress' });
         state.game = updated;
         io.to(`game_${game.id}`).emit('game_started', { game: updated });
-        startRoundTimer(state);
+        if (updated.game_type === 'redblack') startRedBlack(state);
+        else startRoundTimer(state);
       } else {
         io.to(`game_${game.id}`).emit('lobby_update', {
           game,
@@ -471,6 +501,47 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ---------- RED OR BLACK ----------
+
+  // Dealer picks which card from their hand to play this round
+  socket.on('rb_dealer_pick', ({ gameId, cardIndex }) => {
+    try {
+      const state = activeGames.get(gameId);
+      if (!state || state.game.status !== 'in_progress' || !state.rb) return socket.emit('error', { message: 'Game not active' });
+
+      const { dealerId } = rbRoles(state.game);
+      if (socket.data.userId !== dealerId) return socket.emit('error', { message: 'Only the dealer picks cards' });
+      if (state.rb.pickedCard) return socket.emit('error', { message: 'Already picked a card this round' });
+
+      const idx = Number(cardIndex);
+      if (!Number.isInteger(idx) || idx < 0 || idx >= state.rb.hand.length) return socket.emit('error', { message: 'Invalid card' });
+
+      state.rb.pickedCard = state.rb.hand.splice(idx, 1)[0];
+      io.to(`game_${gameId}`).emit('rb_dealer_picked', {});
+    } catch (err) {
+      socket.emit('error', { message: err.message });
+    }
+  });
+
+  // Player guesses the color of the picked card
+  socket.on('rb_player_guess', ({ gameId, guess }) => {
+    try {
+      const state = activeGames.get(gameId);
+      if (!state || state.game.status !== 'in_progress' || !state.rb) return socket.emit('error', { message: 'Game not active' });
+
+      const { playerId } = rbRoles(state.game);
+      if (socket.data.userId !== playerId) return socket.emit('error', { message: 'Only the player guesses' });
+      if (!state.rb.pickedCard) return socket.emit('error', { message: 'Dealer has not picked yet' });
+      if (state.rb.guess) return socket.emit('error', { message: 'Already guessed this round' });
+      if (!['red', 'black'].includes(guess)) return socket.emit('error', { message: 'Invalid guess' });
+
+      state.rb.guess = guess;
+      resolveRedBlackRound(state, guess);
+    } catch (err) {
+      socket.emit('error', { message: err.message });
+    }
+  });
+
   // Player resigns
   socket.on('resign', async ({ gameId }) => {
     try {
@@ -510,6 +581,99 @@ io.on('connection', (socket) => {
     });
   });
 });
+
+// ---------- RED OR BLACK ENGINE ----------
+
+function rbRoles(game) {
+  const dealerId = game.creator_role === 'player' ? game.opponent_id : game.creator_id;
+  const playerId = dealerId === game.creator_id ? game.opponent_id : game.creator_id;
+  return { dealerId, playerId };
+}
+
+// 4 standard decks (52 cards each, no jokers), shuffled
+function buildShoe() {
+  const suits = [
+    { suit: '♠', color: 'black' },
+    { suit: '♣', color: 'black' },
+    { suit: '♥', color: 'red' },
+    { suit: '♦', color: 'red' },
+  ];
+  const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+  const shoe = [];
+  for (let d = 0; d < 4; d++) {
+    for (const { suit, color } of suits) {
+      for (const rank of ranks) shoe.push({ rank, suit, color });
+    }
+  }
+  for (let i = shoe.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1);
+    [shoe[i], shoe[j]] = [shoe[j], shoe[i]];
+  }
+  return shoe;
+}
+
+function startRedBlack(state) {
+  const game = state.game;
+  state.rb = {
+    hand: buildShoe().slice(0, Number(game.rounds)),
+    pickedCard: null,
+    guess: null,
+  };
+  rbBeginRound(state);
+}
+
+function rbSockOf(state, userId) {
+  return userId === state.game.creator_id ? state.creatorSocket : state.opponentSocket;
+}
+
+// Deal out a new round: dealer privately receives their remaining hand
+function rbBeginRound(state) {
+  const game = state.game;
+  const { dealerId, playerId } = rbRoles(game);
+  io.to(`game_${game.id}`).emit('rb_round_started', { round: game.current_round, totalCards: game.rounds });
+  const dealerSock = rbSockOf(state, dealerId);
+  const playerSock = rbSockOf(state, playerId);
+  if (dealerSock) io.to(dealerSock).emit('rb_your_hand', { hand: state.rb.hand });
+  if (playerSock) io.to(playerSock).emit('rb_wait_dealer', {});
+}
+
+async function resolveRedBlackRound(state, guess) {
+  const game = state.game;
+  const { dealerId, playerId } = rbRoles(game);
+  const card = state.rb.pickedCard;
+  const correct = guess === card.color;
+  const roundWinner = correct ? playerId : dealerId;
+
+  const creatorScore = Number(game.creator_score) + (roundWinner === game.creator_id ? 1 : 0);
+  const opponentScore = Number(game.opponent_score) + (roundWinner === game.opponent_id ? 1 : 0);
+  const nextRound = game.current_round + 1;
+  const isGameOver = nextRound > game.rounds;
+
+  // Reset per-round state
+  state.rb.pickedCard = null;
+  state.rb.guess = null;
+
+  const updated = await db.updateGame(game.id, isGameOver
+    ? { status: 'completed', current_round: game.rounds, creator_score: creatorScore, opponent_score: opponentScore }
+    : { current_round: nextRound, creator_score: creatorScore, opponent_score: opponentScore });
+  state.game = updated;
+
+  io.to(`game_${game.id}`).emit('rb_round_result', {
+    round: game.current_round,
+    card,
+    guess,
+    correct,
+    roundWinner,
+    creatorScore,
+    opponentScore,
+  });
+
+  if (isGameOver) {
+    settleGame(state, { reason: 'completed' });
+  } else {
+    setTimeout(() => rbBeginRound(state), 2500); // brief pause so players see the reveal
+  }
+}
 
 // ---------- GAME LOGIC ----------
 

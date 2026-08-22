@@ -21,6 +21,8 @@ let myChoice = null;
 let timerInterval = null;
 let roundDeadline = null;
 let opponentHistory = [];
+let rbRoleIsDealer = false;
+let rbSelectedRole = null;
 const pendingGamesCache = {};
 
 // ---------- UTILITIES ----------
@@ -122,7 +124,93 @@ function updateWallet(balance) {
 function selectGame(game) {
   if (game === 'rps') {
     showScreen('screen-game-options');
+  } else if (game === 'redblack') {
+    rbSelectedRole = null;
+    document.getElementById('rb-role-dealer-btn').style.opacity = '1';
+    document.getElementById('rb-role-player-btn').style.opacity = '1';
+    showScreen('screen-create-rb');
   }
+}
+
+// ---------- RED OR BLACK ----------
+
+function setRbRole(role) {
+  rbSelectedRole = role;
+  document.getElementById('rb-role-dealer-btn').style.opacity = role === 'dealer' ? '1' : '0.45';
+  document.getElementById('rb-role-player-btn').style.opacity = role === 'player' ? '1' : '0.45';
+}
+
+function updateRbPot() {
+  const bet = parseInt(document.getElementById('rb-bet').value) || 1;
+  const el = document.getElementById('rb-pot');
+  if (el) el.textContent = (bet * 2).toFixed(2);
+}
+
+async function createRbGame() {
+  const opponentTelegramId = document.getElementById('rb-opponent-id').value.trim();
+  const cards = parseInt(document.getElementById('rb-cards').value);
+  const bet = parseInt(document.getElementById('rb-bet').value);
+
+  if (!opponentTelegramId) return showToast('Enter your opponent\'s Telegram ID or @username', 'error');
+  if (!rbSelectedRole) return showToast('Choose your role: Dealer or Player', 'error');
+  if (cards < 1 || cards > 52) return showToast('Cards must be between 1 and 52', 'error');
+  if (!isFreeMode && (bet < 1 || bet > 20)) return showToast('Bet must be between 1 and 20 GHS per game', 'error');
+
+  try {
+    const data = await api('/api/games', {
+      method: 'POST',
+      body: JSON.stringify({
+        creatorId: currentUser.id,
+        opponentTelegramId,
+        rounds: cards,
+        amountPerRound: isFreeMode ? 0 : bet,
+        roundSeconds: 60,
+        payoutStyle: 'winner_takes_all',
+        resignRule: 'full_pot',
+        isFree: isFreeMode,
+        gameType: 'redblack',
+        creatorRole: rbSelectedRole,
+      }),
+    });
+
+    currentGame = data.game;
+    currentRoomCode = data.roomCode;
+    isCreator = true;
+    pendingGamesCache[data.game.id] = data.game;
+
+    document.getElementById('room-code-display').textContent = data.roomCode;
+    document.getElementById('edit-opponent-id').value = opponentTelegramId;
+    showScreen('screen-room-code');
+    applyLobbyState(data.game);
+
+    const wallet = await api(`/api/wallet/${currentUser.id}`);
+    updateWallet(wallet.balance);
+
+    socket.emit('join_game_room', { gameId: currentGame.id, userId: currentUser.id });
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function rbAmIDealer(game) {
+  return isCreator ? game.creator_role === 'dealer' : game.creator_role === 'player';
+}
+
+function renderRbHand(hand) {
+  const el = document.getElementById('rb-hand');
+  el.innerHTML = hand.map((c, i) => `<button onclick="rbPick(${i})">🂠</button>`).join('');
+}
+
+function rbPick(cardIndex) {
+  socket.emit('rb_dealer_pick', { gameId: currentGame.id, cardIndex });
+  document.getElementById('rb-hand').innerHTML = '';
+  if (tg) tg.HapticFeedback?.impactOccurred('medium');
+}
+
+function rbGuess(color) {
+  socket.emit('rb_player_guess', { gameId: currentGame.id, guess: color });
+  document.getElementById('rb-red-btn').disabled = true;
+  document.getElementById('rb-black-btn').disabled = true;
 }
 
 // ---------- FREE PLAY ----------
@@ -477,7 +565,14 @@ socket.on('game_state', (data) => {
   opponentHistory = [];
   updateOpponentHint();
   if (data.game.status === 'in_progress') {
-    showScreen('screen-play');
+    if (data.game.game_type === 'redblack') {
+      rbRoleIsDealer = rbAmIDealer(data.game);
+      document.getElementById('rb-role-label').textContent = rbRoleIsDealer ? 'You are the Dealer 🎩' : 'You are the Player 🎯';
+      document.getElementById('rb-total').textContent = data.game.rounds;
+      showScreen('screen-play-rb');
+    } else {
+      showScreen('screen-play');
+    }
     document.getElementById('current-round').textContent = data.game.current_round;
     document.getElementById('total-rounds').textContent = data.game.rounds;
     document.getElementById('my-score').textContent = isCreator ? data.game.creator_score : data.game.opponent_score;
@@ -497,12 +592,69 @@ socket.on('game_started', (data) => {
   myChoice = null;
   opponentHistory = [];
   updateOpponentHint();
-  document.getElementById('current-round').textContent = 1;
-  document.getElementById('total-rounds').textContent = data.game.rounds;
-  document.getElementById('my-score').textContent = 0;
-  document.getElementById('opp-score').textContent = 0;
-  showToast('Both players ready — game started!', 'success');
-  showScreen('screen-play');
+  if (data.game.game_type === 'redblack') {
+    rbRoleIsDealer = rbAmIDealer(data.game);
+    document.getElementById('rb-role-label').textContent = rbRoleIsDealer ? 'You are the Dealer 🎩' : 'You are the Player 🎯';
+    document.getElementById('rb-my-score').textContent = 0;
+    document.getElementById('rb-opp-score').textContent = 0;
+    document.getElementById('rb-round').textContent = 1;
+    document.getElementById('rb-total').textContent = data.game.rounds;
+    document.getElementById('rb-result').textContent = '';
+    document.getElementById('rb-hand').innerHTML = '';
+    document.getElementById('rb-card-area').innerHTML = '<div class="rb-card-face-down">🂠</div>';
+    showScreen('screen-play-rb');
+  } else {
+    document.getElementById('current-round').textContent = 1;
+    document.getElementById('total-rounds').textContent = data.game.rounds;
+    document.getElementById('my-score').textContent = 0;
+    document.getElementById('opp-score').textContent = 0;
+    showToast('Both players ready — game started!', 'success');
+    showScreen('screen-play');
+  }
+});
+
+// ---------- RED OR BLACK SOCKET EVENTS ----------
+
+socket.on('rb_round_started', (data) => {
+  document.getElementById('rb-round').textContent = data.round;
+  document.getElementById('rb-total').textContent = data.totalCards;
+  document.getElementById('rb-result').textContent = '';
+  document.getElementById('rb-card-area').innerHTML = '<div class="rb-card-face-down">🂠</div>';
+  document.getElementById('rb-status').textContent = rbRoleIsDealer ? 'Pick a card to play' : 'Dealer is picking a card...';
+});
+
+socket.on('rb_your_hand', (data) => {
+  renderRbHand(data.hand);
+});
+
+socket.on('rb_wait_dealer', () => {
+  document.getElementById('rb-hand').innerHTML = '';
+  document.getElementById('rb-red-btn').disabled = true;
+  document.getElementById('rb-black-btn').disabled = true;
+});
+
+socket.on('rb_dealer_picked', () => {
+  if (rbRoleIsDealer) {
+    document.getElementById('rb-status').textContent = 'Waiting for opponent\'s guess...';
+  } else {
+    document.getElementById('rb-status').textContent = 'Card picked! Guess Red or Black';
+    document.getElementById('rb-red-btn').disabled = false;
+    document.getElementById('rb-black-btn').disabled = false;
+  }
+});
+
+socket.on('rb_round_result', (data) => {
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  document.getElementById('rb-card-area').innerHTML =
+    `<div class="rb-card ${data.card.color}">${data.card.rank}<br>${data.card.suit}</div>`;
+  const guessText = rbRoleIsDealer ? `Player guessed ${cap(data.guess)}` : `You guessed ${cap(data.guess)}`;
+  const outcome = data.roundWinner === currentUser.id ? 'You win the card! 🎉' : 'You lose the card!';
+  document.getElementById('rb-result').textContent =
+    `${data.card.rank}${data.card.suit} is ${cap(data.card.color)} — ${guessText}. ${outcome}`;
+  document.getElementById('rb-my-score').textContent = isCreator ? data.creatorScore : data.opponentScore;
+  document.getElementById('rb-opp-score').textContent = isCreator ? data.opponentScore : data.creatorScore;
+  document.getElementById('rb-red-btn').disabled = true;
+  document.getElementById('rb-black-btn').disabled = true;
 });
 
 socket.on('game_cancelled', (data) => {
@@ -665,4 +817,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   await initUser();
   updateTotalPot();
   loadPendingGames();
+  document.getElementById('rb-bet').addEventListener('input', updateRbPot);
 });

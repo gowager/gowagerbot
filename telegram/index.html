@@ -88,6 +88,12 @@
           <p>Classic hand game. Best of N rounds wins!</p>
           <button class="btn-primary btn-sm">Play Now</button>
         </div>
+        <div class="game-card" onclick="selectGame('redblack')">
+          <div class="game-icon">🃏</div>
+          <h3>Red or Black</h3>
+          <p>Guess the color. Beat the dealer!</p>
+          <button class="btn-primary btn-sm">Play Now</button>
+        </div>
         <div class="game-card locked">
           <div class="game-icon">🔒</div>
           <h3>Coming Soon</h3>
@@ -190,6 +196,66 @@
         </div>
         <button class="btn-primary" onclick="createGame()">Create & Deposit</button>
       </div>
+    </div>
+
+    <!-- Red or Black Create -->
+    <div id="screen-create-rb" class="screen">
+      <div class="header">
+        <button class="back-btn" onclick="showScreen('screen-games')">←</button>
+        <h2>Red or Black</h2>
+      </div>
+      <div class="form">
+        <div class="field">
+          <label>Opponent's Telegram ID or @username</label>
+          <input type="text" id="rb-opponent-id" placeholder="e.g. 123456789 or @axe773">
+        </div>
+        <div class="field">
+          <label>Your Role</label>
+          <div style="display:flex;gap:8px;">
+            <button type="button" class="btn-outline btn-sm" id="rb-role-dealer-btn" onclick="setRbRole('dealer')">🎩 Dealer</button>
+            <button type="button" class="btn-outline btn-sm" id="rb-role-player-btn" onclick="setRbRole('player')">🎯 Player</button>
+          </div>
+          <p class="hint">Dealer picks which card to play. Player guesses Red or Black.</p>
+        </div>
+        <div class="field">
+          <label>Number of Cards (1-52)</label>
+          <input type="number" id="rb-cards" value="5" min="1" max="52">
+        </div>
+        <div class="field">
+          <label>Bet per Game (1-20 GHS)</label>
+          <input type="number" id="rb-bet" value="5" min="1" max="20">
+        </div>
+        <div class="lobby-row"><span>Total Pot</span><strong><span id="rb-pot">10.00</span> GHS</strong></div>
+        <button class="btn-primary" onclick="createRbGame()">Create Game & Deposit</button>
+      </div>
+    </div>
+
+    <!-- Red or Black Play -->
+    <div id="screen-play-rb" class="screen">
+      <div class="header">
+        <h2>Red or Black</h2>
+      </div>
+      <p style="text-align:center;color:var(--tg-hint);font-size:13px;" id="rb-role-label"></p>
+      <div class="stats-row">
+        <div class="stat"><span>You</span><strong id="rb-my-score">0</strong></div>
+        <div class="stat center"><span>Card</span><strong id="rb-round">1</strong><small>/<span id="rb-total">5</span></small></div>
+        <div class="stat"><span>Opp</span><strong id="rb-opp-score">0</strong></div>
+      </div>
+      <div id="rb-card-area" style="display:flex;justify-content:center;margin:14px 0;">
+        <div class="rb-card-face-down">🂠</div>
+      </div>
+      <div id="rb-hand" class="rb-hand"></div>
+      <div id="rb-status" style="text-align:center;min-height:18px;font-size:13px;color:var(--tg-hint);"></div>
+      <div class="rps-choices">
+        <button class="rps-btn" id="rb-red-btn" onclick="rbGuess('red')" disabled>
+          <span class="rps-emoji">🔴</span><span>Red</span>
+        </button>
+        <button class="rps-btn" id="rb-black-btn" onclick="rbGuess('black')" disabled>
+          <span class="rps-emoji">⚫</span><span>Black</span>
+        </button>
+      </div>
+      <div id="rb-result" class="round-result"></div>
+      <button class="btn-danger" onclick="confirmResign()">🏳️ Resign</button>
     </div>
 
     <!-- Room Code -->
