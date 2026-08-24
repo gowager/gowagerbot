@@ -965,3 +965,29 @@ h2 {
 .rb-face-rank { font-size: 19px; font-weight: 700; line-height: 1; }
 .rb-face-suit { font-size: 26px; line-height: 1; }
 .rb-hand button:active { transform: scale(0.95); }
+
+/* ---------- WAR ZONE ---------- */
+.wz-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  max-width: 320px;
+  margin: 0 auto 12px;
+}
+.wz-cell {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 2px solid #3a3f4b;
+  background: #23262e;
+  color: #e8eaf0;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.wz-cell:disabled { cursor: default; }
+.wz-cell.mine { background: #1c2333; border-color: #6c8cff; }
+.wz-cell.hit { background: #4a2626; border-color: #e74c3c; }
+.wz-cell.sunk { background: #5c2b2b; border-color: #ff6b6b; }
+.wz-cell.miss { background: #1f2d42; border-color: #5a8dd6; }

@@ -69,7 +69,7 @@ function validateResignRule(rule) {
 }
 
 function validateGameType(t) {
-  return ['rps', 'redblack'].includes(t);
+  return ['rps', 'redblack', 'warzone'].includes(t);
 }
 
 function validateCreatorRole(r) {
@@ -156,6 +156,9 @@ app.post('/api/games', async (req, res) => {
     if (!free && !validateAmount(amountPerRound) || (free === false && Number(amountPerRound) > 20)) {
       return res.status(400).json({ error: 'Bet must be 1-20 GHS per game' });
     }
+  } else if (type === 'warzone') {
+    // Single-match stake: amount is the whole match bet, rounds forced to 1
+    if (!free && !validateAmount(amountPerRound)) return res.status(400).json({ error: 'Stake must be 1-50 GHS per match' });
   } else {
     if (!validateRounds(rounds)) return res.status(400).json({ error: 'Rounds must be 1-25' });
     if (!free && !validateAmount(amountPerRound)) return res.status(400).json({ error: 'Amount must be 1-50 GHS' });
@@ -194,17 +197,18 @@ app.post('/api/games', async (req, res) => {
     }
 
     const roomCode = generateRoomCode();
+    const isWarzone = type === 'warzone';
     const game = await db.createGame({
       room_code: roomCode,
       creator_id: creator.id,
       opponent_id: opponent.id,
       game_type: type,
       creator_role: type === 'redblack' ? creatorRole : null,
-      rounds: Number(rounds),
+      rounds: isWarzone ? 1 : Number(rounds),
       amount_per_round: free ? 0 : Number(amountPerRound),
-      round_seconds: Number(roundSeconds),
-      payout_style: type === 'redblack' ? 'winner_takes_all' : payoutStyle,
-      resign_rule: type === 'redblack' ? 'full_pot' : resignRule,
+      round_seconds: isWarzone ? 30 : Number(roundSeconds),
+      payout_style: type === 'redblack' || isWarzone ? 'winner_takes_all' : payoutStyle,
+      resign_rule: type === 'redblack' || isWarzone ? 'full_pot' : resignRule,
       resign_definition: '2_games_in_a_row',
       is_free: free,
     });
@@ -417,6 +421,26 @@ io.on('connection', (socket) => {
         else socket.emit(state.rb.pickedCard ? 'rb_dealer_picked' : 'rb_wait_dealer', {});
       }
 
+      // Re-sync War Zone mid-game state for returning players
+      if (state.game.status === 'in_progress' && state.game.game_type === 'warzone' && state.wz) {
+        const isCreator = userId === state.game.creator_id;
+        if (state.wz.phase === 'placing') {
+          socket.emit('wz_placement_started', { seconds: 30 });
+          if ((isCreator && state.wz.creatorCells) || (!isCreator && state.wz.opponentCells)) {
+            socket.emit('wz_placed', {});
+          }
+        } else {
+          socket.emit('wz_battle_started', { turn: state.wz.turn });
+          socket.emit('wz_sync', {
+            turn: state.wz.turn,
+            creatorHits: state.wz.creatorHits,
+            opponentHits: state.wz.opponentHits,
+            yourGuesses: isCreator ? [...state.wz.creatorGuesses] : [...state.wz.opponentGuesses],
+            incomingShots: isCreator ? [...state.wz.opponentGuesses] : [...state.wz.creatorGuesses],
+          });
+        }
+      }
+
       // Notify the other player
       socket.to(`game_${gameId}`).emit('player_joined', { userId });
       io.to(`game_${gameId}`).emit('lobby_update', {
@@ -455,6 +479,7 @@ io.on('connection', (socket) => {
         state.game = updated;
         io.to(`game_${game.id}`).emit('game_started', { game: updated });
         if (updated.game_type === 'redblack') startRedBlack(state);
+        else if (updated.game_type === 'warzone') startWarZone(state);
         else startRoundTimer(state);
       } else {
         io.to(`game_${game.id}`).emit('lobby_update', {
@@ -545,6 +570,88 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ---------- WAR ZONE HANDLERS ----------
+
+  // Player locks in their 4 rocket positions during the placement phase
+  socket.on('wz_place', ({ gameId, cells }) => {
+    try {
+      const state = activeGames.get(gameId);
+      if (!state || !state.wz || state.wz.phase !== 'placing') return socket.emit('error', { message: 'Not in placement phase' });
+      const game = state.game;
+      const userId = socket.data.userId;
+      if (userId !== game.creator_id && userId !== game.opponent_id) return socket.emit('error', { message: 'You are not part of this game' });
+
+      if (!Array.isArray(cells) || cells.length !== WZ_TARGETS) return socket.emit('error', { message: 'Place exactly 4 rockets' });
+      const set = new Set(cells.map(Number));
+      const valid = set.size === WZ_TARGETS && [...set].every(c => Number.isInteger(c) && c >= 0 && c < WZ_SIZE);
+      if (!valid) return socket.emit('error', { message: 'Invalid positions' });
+
+      if (userId === game.creator_id) {
+        if (state.wz.creatorCells) return socket.emit('error', { message: 'Positions already locked' });
+        state.wz.creatorCells = [...set];
+      } else {
+        if (state.wz.opponentCells) return socket.emit('error', { message: 'Positions already locked' });
+        state.wz.opponentCells = [...set];
+      }
+
+      socket.emit('wz_placed', {});
+      if (state.wz.creatorCells && state.wz.opponentCells) wzBeginBattle(state);
+    } catch (err) {
+      socket.emit('error', { message: err.message });
+    }
+  });
+
+  // Player guesses a box on the enemy grid (strictly alternating turns)
+  socket.on('wz_guess', async ({ gameId, cell }) => {
+    try {
+      const state = activeGames.get(gameId);
+      if (!state || !state.wz || state.wz.phase !== 'battle') return socket.emit('error', { message: 'Battle not in progress' });
+      const game = state.game;
+      const userId = socket.data.userId;
+      const isCreator = userId === game.creator_id;
+      if (!isCreator && userId !== game.opponent_id) return socket.emit('error', { message: 'You are not part of this game' });
+      if ((state.wz.turn === 'creator') !== isCreator) return socket.emit('error', { message: 'Not your turn' });
+
+      const idx = Number(cell);
+      if (!Number.isInteger(idx) || idx < 0 || idx >= WZ_SIZE) return socket.emit('error', { message: 'Invalid box' });
+      const myGuesses = isCreator ? state.wz.creatorGuesses : state.wz.opponentGuesses;
+      if (myGuesses.has(idx)) return socket.emit('error', { message: 'Already guessed that box' });
+      myGuesses.add(idx);
+
+      const targetCells = isCreator ? state.wz.opponentCells : state.wz.creatorCells;
+      const hit = targetCells.includes(idx);
+      if (isCreator) { if (hit) state.wz.creatorHits += 1; }
+      else if (hit) state.wz.opponentHits += 1;
+
+      const gameOver = state.wz.creatorHits >= WZ_TARGETS || state.wz.opponentHits >= WZ_TARGETS;
+
+      // Persist hits as scores so settleGame picks the right winner
+      const updated = await db.updateGame(game.id, gameOver
+        ? { status: 'completed', creator_score: state.wz.creatorHits, opponent_score: state.wz.opponentHits }
+        : { creator_score: state.wz.creatorHits, opponent_score: state.wz.opponentHits });
+      state.game = updated;
+
+      io.to(`game_${gameId}`).emit('wz_result', {
+        cell: idx,
+        hit,
+        byCreator: isCreator,
+        creatorHits: state.wz.creatorHits,
+        opponentHits: state.wz.opponentHits,
+        gameOver,
+      });
+
+      if (gameOver) {
+        state.wz.phase = 'done';
+        settleGame(state, { reason: 'completed' });
+      } else {
+        state.wz.turn = isCreator ? 'opponent' : 'creator';
+        io.to(`game_${gameId}`).emit('wz_turn', { turn: state.wz.turn });
+      }
+    } catch (err) {
+      socket.emit('error', { message: err.message });
+    }
+  });
+
   // Player resigns
   socket.on('resign', async ({ gameId }) => {
     try {
@@ -557,6 +664,7 @@ io.on('connection', (socket) => {
 
       const resignerId = userId;
       clearTimeout(state.roundTimer);
+      clearTimeout(state.wzTimer);
 
       // Settle based on resign rule (full_pot or per_game)
       await settleGame(state, {
@@ -676,6 +784,48 @@ async function resolveRedBlackRound(state, guess) {
   } else {
     setTimeout(() => rbBeginRound(state), 2500); // brief pause so players see the reveal
   }
+}
+
+// ---------- WAR ZONE ENGINE ----------
+// 4x4 grid (16 boxes). Each player secretly places 4 rockets in 30 seconds.
+// Players then alternate single guesses at the enemy grid.
+// First to find all 4 enemy rockets wins the pot.
+
+const WZ_SIZE = 16;
+const WZ_TARGETS = 4;
+const WZ_PLACE_SECONDS = 30;
+
+function wzAutoPlace() {
+  const cells = new Set();
+  while (cells.size < WZ_TARGETS) cells.add(crypto.randomInt(WZ_SIZE));
+  return [...cells];
+}
+
+function startWarZone(state) {
+  state.wz = {
+    phase: 'placing',
+    creatorCells: null,
+    opponentCells: null,
+    creatorHits: 0,
+    opponentHits: 0,
+    creatorGuesses: new Set(),
+    opponentGuesses: new Set(),
+    turn: 'creator',
+  };
+  io.to(`game_${state.game.id}`).emit('wz_placement_started', { seconds: WZ_PLACE_SECONDS });
+  // 30s placement window; anyone who fails to submit gets random positions
+  state.wzTimer = setTimeout(() => {
+    if (!state.wz || state.wz.phase !== 'placing') return;
+    if (!state.wz.creatorCells) state.wz.creatorCells = wzAutoPlace();
+    if (!state.wz.opponentCells) state.wz.opponentCells = wzAutoPlace();
+    wzBeginBattle(state);
+  }, WZ_PLACE_SECONDS * 1000);
+}
+
+function wzBeginBattle(state) {
+  clearTimeout(state.wzTimer);
+  state.wz.phase = 'battle';
+  io.to(`game_${state.game.id}`).emit('wz_battle_started', { turn: state.wz.turn });
 }
 
 // ---------- GAME LOGIC ----------

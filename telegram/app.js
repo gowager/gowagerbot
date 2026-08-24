@@ -132,6 +132,8 @@ function selectGame(game) {
     document.getElementById('rb-role-dealer-btn').style.opacity = '1';
     document.getElementById('rb-role-player-btn').style.opacity = '1';
     showScreen('screen-rb-options');
+  } else if (game === 'warzone') {
+    showScreen('screen-wz-options');
   }
 }
 
@@ -206,6 +208,216 @@ async function createRbGame() {
 function rbAmIDealer(game) {
   return isCreator ? game.creator_role === 'dealer' : game.creator_role === 'player';
 }
+
+// ---------- WAR ZONE ----------
+
+const WZ_EMOJI = '🚀';
+let wzMyCells = new Set();
+let wzPlaced = false;
+let wzBattle = false;
+let wzMyTurn = false;
+let wzTimerInt = null;
+let wzEnemyMarks = new Map();
+
+function updateWzPot() {
+  const stake = parseInt(document.getElementById('wz-stake').value) || 1;
+  const potEl = document.getElementById('wz-pot');
+  const shareEl = document.getElementById('wz-share');
+  if (potEl) potEl.textContent = (stake * 2).toFixed(2);
+  if (shareEl) shareEl.textContent = stake.toFixed(2);
+}
+
+async function createWzGame() {
+  const opponentTelegramId = document.getElementById('wz-opponent-id').value.trim();
+  const stake = parseInt(document.getElementById('wz-stake').value);
+  if (!opponentTelegramId) return showToast('Enter your opponent\'s Telegram ID or @username', 'error');
+  if (!isFreeMode && (stake < 1 || stake > 50)) return showToast('Stake must be between 1 and 50 GHS per match', 'error');
+  try {
+    const data = await api('/api/games', {
+      method: 'POST',
+      body: JSON.stringify({
+        creatorId: currentUser.id,
+        opponentTelegramId,
+        rounds: 1,
+        amountPerRound: isFreeMode ? 0 : stake,
+        roundSeconds: 30,
+        payoutStyle: 'winner_takes_all',
+        resignRule: 'full_pot',
+        isFree: isFreeMode,
+        gameType: 'warzone',
+      }),
+    });
+    currentGame = data.game;
+    currentRoomCode = data.roomCode;
+    isCreator = true;
+    pendingGamesCache[data.game.id] = data.game;
+    document.getElementById('room-code-display').textContent = data.roomCode;
+    document.getElementById('edit-opponent-id').value = opponentTelegramId;
+    showScreen('screen-room-code');
+    applyLobbyState(data.game);
+    const wallet = await api(`/api/wallet/${currentUser.id}`);
+    updateWallet(wallet.balance);
+    socket.emit('join_game_room', { gameId: currentGame.id, userId: currentUser.id });
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function wzResetLocal() {
+  clearInterval(wzTimerInt);
+  wzMyCells = new Set();
+  wzPlaced = false;
+  wzBattle = false;
+  wzMyTurn = false;
+  wzEnemyMarks = new Map();
+  document.getElementById('wz-my-hits').textContent = '0';
+  document.getElementById('wz-opp-hits').textContent = '0';
+  document.getElementById('wz-result-msg').textContent = '';
+  document.getElementById('wz-status').textContent = '';
+  document.getElementById('wz-timer-box').style.display = 'none';
+  document.getElementById('wz-confirm-box').style.display = 'none';
+  document.getElementById('wz-enemy-section').style.display = 'none';
+  document.getElementById('wz-my-grid').innerHTML = '';
+  document.getElementById('wz-enemy-grid').innerHTML = '';
+  document.getElementById('wz-phase-label').textContent = 'Placing rockets';
+}
+
+function wzRenderPlacementGrid() {
+  const grid = document.getElementById('wz-my-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const cell = document.createElement('button');
+    cell.className = 'wz-cell' + (wzMyCells.has(i) ? ' mine' : '');
+    cell.textContent = wzMyCells.has(i) ? WZ_EMOJI : '';
+    cell.onclick = () => {
+      if (wzPlaced || wzBattle) return;
+      if (wzMyCells.has(i)) wzMyCells.delete(i);
+      else if (wzMyCells.size < 4) wzMyCells.add(i);
+      wzRenderPlacementGrid();
+      if (tg) tg.HapticFeedback?.selectionChanged();
+    };
+    grid.appendChild(cell);
+  }
+  document.getElementById('wz-place-count').textContent = `${wzMyCells.size} / 4 placed`;
+  document.getElementById('wz-confirm-btn').disabled = wzMyCells.size !== 4;
+}
+
+function wzStartPlacementCountdown(seconds) {
+  document.getElementById('wz-timer-box').style.display = 'block';
+  const label = document.getElementById('wz-timer');
+  let left = seconds;
+  label.textContent = left;
+  clearInterval(wzTimerInt);
+  wzTimerInt = setInterval(() => {
+    left -= 1;
+    label.textContent = Math.max(left, 0);
+    if (left <= 0) clearInterval(wzTimerInt);
+  }, 1000);
+}
+
+function wzConfirm() {
+  if (wzMyCells.size !== 4 || wzPlaced) return;
+  socket.emit('wz_place', { gameId: currentGame.id, cells: [...wzMyCells] });
+}
+
+socket.on('wz_placement_started', (data) => {
+  wzResetLocal();
+  document.getElementById('wz-timer-box').style.display = 'block';
+  wzRenderPlacementGrid();
+  wzStartPlacementCountdown(data.seconds || 30);
+});
+
+socket.on('wz_placed', () => {
+  wzPlaced = true;
+  document.getElementById('wz-confirm-box').style.display = 'none';
+  document.getElementById('wz-status').textContent = 'Positions locked. Waiting for opponent...';
+  wzRenderPlacementGrid();
+});
+
+socket.on('wz_battle_started', (data) => {
+  clearInterval(wzTimerInt);
+  wzBattle = true;
+  wzPlaced = true;
+  document.getElementById('wz-timer-box').style.display = 'none';
+  document.getElementById('wz-confirm-box').style.display = 'none';
+  document.getElementById('wz-phase-label').textContent = 'Battle!';
+  const grid = document.getElementById('wz-my-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const cell = document.createElement('div');
+    cell.className = 'wz-cell' + (wzMyCells.has(i) ? ' mine' : '');
+    cell.textContent = wzMyCells.has(i) ? WZ_EMOJI : '';
+    grid.appendChild(cell);
+  }
+  wzEnemyMarks = new Map();
+  wzMyTurn = isCreator ? data.turn === 'creator' : data.turn === 'opponent';
+  wzRenderEnemyGrid();
+  document.getElementById('wz-enemy-section').style.display = 'block';
+  wzUpdateBattleStatus();
+});
+
+function wzRenderEnemyGrid() {
+  const grid = document.getElementById('wz-enemy-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const marked = wzEnemyMarks.get(i);
+    const cell = document.createElement('button');
+    cell.className = 'wz-cell' + (marked ? ` ${marked.cls}` : '');
+    cell.textContent = marked ? marked.txt : '';
+    cell.disabled = !wzMyTurn || !!marked;
+    cell.onclick = () => {
+      if (!wzMyTurn) return;
+      socket.emit('wz_guess', { gameId: currentGame.id, cell: i });
+      wzMyTurn = false;
+      wzUpdateBattleStatus();
+      if (tg) tg.HapticFeedback?.impactOccurred('medium');
+    };
+    grid.appendChild(cell);
+  }
+}
+
+function wzUpdateBattleStatus() {
+  const status = document.getElementById('wz-status');
+  if (wzMyTurn) status.textContent = '🎯 Your turn - fire at the enemy grid!';
+  else status.textContent = '⏳ Waiting for opponent\'s shot...';
+}
+
+socket.on('wz_sync', (data) => {
+  wzEnemyMarks = new Map();
+  (data.yourGuesses || []).forEach(c => wzEnemyMarks.set(c, { cls: '', txt: '?' }));
+  wzMyTurn = isCreator ? data.turn === 'creator' : data.turn === 'opponent';
+  document.getElementById('wz-my-hits').textContent = isCreator ? data.creatorHits : data.opponentHits;
+  document.getElementById('wz-opp-hits').textContent = isCreator ? data.opponentHits : data.creatorHits;
+  wzRenderEnemyGrid();
+  wzUpdateBattleStatus();
+});
+
+socket.on('wz_result', (data) => {
+  const myShot = data.byCreator === isCreator;
+  const msg = document.getElementById('wz-result-msg');
+  document.getElementById('wz-my-hits').textContent = isCreator ? data.creatorHits : data.opponentHits;
+  document.getElementById('wz-opp-hits').textContent = isCreator ? data.opponentHits : data.creatorHits;
+
+  if (myShot) {
+    wzEnemyMarks.set(data.cell, data.hit ? { cls: 'hit', txt: '🔥' } : { cls: 'miss', txt: '❌' });
+    msg.textContent = data.hit ? '💥 HIT! Enemy rocket found!' : '💧 Miss — splash!';
+  } else if (data.hit && wzMyCells.has(data.cell)) {
+    const c = document.getElementById('wz-my-grid').children[data.cell];
+    if (c) { c.classList.add('sunk'); c.textContent = '💥'; }
+    msg.textContent = '😱 Your rocket was hit!';
+  } else {
+    msg.textContent = '😌 Opponent missed your waters.';
+  }
+
+  if (data.gameOver) wzMyTurn = false;
+  wzRenderEnemyGrid();
+});
+
+socket.on('wz_turn', (data) => {
+  wzMyTurn = isCreator ? data.turn === 'creator' : data.turn === 'opponent';
+  wzRenderEnemyGrid();
+  wzUpdateBattleStatus();
+});
 
 function renderRbHand(hand) {
   const el = document.getElementById('rb-hand');
@@ -637,6 +849,9 @@ socket.on('game_started', (data) => {
     document.getElementById('rb-hand').innerHTML = '';
     document.getElementById('rb-card-area').innerHTML = '<div class="rb-card-face-down">🂠</div>';
     showScreen('screen-play-rb');
+  } else if (data.game.game_type === 'warzone') {
+    wzResetLocal();
+    showScreen('screen-play-wz');
   } else {
     document.getElementById('current-round').textContent = 1;
     document.getElementById('total-rounds').textContent = data.game.rounds;
@@ -859,6 +1074,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateTotalPot();
   loadPendingGames();
   document.getElementById('rb-bet').addEventListener('input', updateRbPot);
+  const wzStakeInput = document.getElementById('wz-stake');
+  if (wzStakeInput) wzStakeInput.addEventListener('input', updateWzPot);
   const rbCardsInput = document.getElementById('rb-cards');
   if (rbCardsInput) rbCardsInput.addEventListener('input', updateRbPot);
 });

@@ -709,3 +709,28 @@ p {
 .rb-face-rank { font-size: 19px; font-weight: 700; line-height: 1; }
 .rb-face-suit { font-size: 26px; line-height: 1; }
 .rb-hand button:active { transform: scale(0.95); }
+
+/* ---------- WAR ZONE ---------- */
+.wz-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  max-width: 320px;
+  margin: 0 auto 12px;
+}
+.wz-cell {
+  aspect-ratio: 1;
+  border-radius: 8px;
+  border: 2px solid #d7d7d7;
+  background: #eef2f7;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.wz-cell:disabled { cursor: default; }
+.wz-cell.mine { background: #ffffff; border-color: #6c8cff; }
+.wz-cell.hit { background: #ffe3e3; border-color: #e74c3c; }
+.wz-cell.sunk { background: #ffd6d6; border-color: #c0392b; }
+.wz-cell.miss { background: #dcefff; border-color: #7fb3ff; }

@@ -94,6 +94,12 @@
           <p>Guess the color. Beat the dealer!</p>
           <button class="btn-primary btn-sm">Play Now</button>
         </div>
+        <div class="game-card" onclick="selectGame('warzone')">
+          <div class="game-icon">🚀</div>
+          <h3>War Zone</h3>
+          <p>Hide 4 rockets, hunt theirs. Last fleet standing wins!</p>
+          <button class="btn-primary btn-sm">Play Now</button>
+        </div>
         <div class="game-card locked">
           <div class="game-icon">🔒</div>
           <h3>Coming Soon</h3>
@@ -143,6 +149,65 @@
         <button class="btn-primary btn-big" onclick="showScreen('screen-create-rb')">➕ Create Game</button>
         <button class="btn-outline btn-big" onclick="showScreen('screen-join-game')">🔗 Join Game</button>
       </div>
+    </div>
+
+    <!-- War Zone Options -->
+    <div id="screen-wz-options" class="screen">
+      <div class="header">
+        <button class="back-btn" onclick="showScreen('screen-games')">←</button>
+        <h2>War Zone 🚀</h2>
+      </div>
+      <div class="options">
+        <button class="btn-primary btn-big" onclick="showScreen('screen-create-wz')">➕ Create Game</button>
+        <button class="btn-outline btn-big" onclick="showScreen('screen-join-game')">🔗 Join Game</button>
+      </div>
+    </div>
+
+    <!-- War Zone Create -->
+    <div id="screen-create-wz" class="screen">
+      <div class="header">
+        <button class="back-btn" onclick="showScreen('screen-wz-options')">←</button>
+        <h2>War Zone</h2>
+      </div>
+      <div class="form">
+        <p class="hint">4×4 grid - hide 4 rockets, find theirs first!</p>
+        <div class="field">
+          <label>Opponent's Telegram ID or @username</label>
+          <input type="text" id="wz-opponent-id" placeholder="e.g. 123456789 or @axe773">
+        </div>
+        <div class="field">
+          <label>Stake per Match (1-50 GHS)</label>
+          <input type="number" id="wz-stake" value="2" min="1" max="50">
+        </div>
+        <div class="lobby-row"><span>Total Pot</span><strong><span id="wz-pot">4.00</span> GHS</strong></div>
+        <div class="lobby-row"><span>Your Deposit (your stake)</span><strong><span id="wz-share">2.00</span> GHS</strong></div>
+        <p class="hint">30s to place 4 rockets - then take turns hunting - winner takes pot minus 5% fee</p>
+        <button class="btn-primary" onclick="createWzGame()">Create Game & Deposit</button>
+      </div>
+    </div>
+
+    <!-- War Zone Play -->
+    <div id="screen-play-wz" class="screen">
+      <div class="header">
+        <h2>War Zone 🚀</h2>
+      </div>
+      <div class="lobby-row"><span>Phase</span><strong id="wz-phase-label">Placing rockets</strong></div>
+      <div class="lobby-row"><span>Score (You - Opp)</span><strong><span id="wz-my-hits">0</span> - <span id="wz-opp-hits">0</span></strong></div>
+      <div id="wz-timer-box" style="text-align:center;margin:10px 0;">
+        <strong>⏱ <span id="wz-timer">30</span>s left to place your rockets</strong>
+        <p class="hint" id="wz-place-count">0 / 4 placed</p>
+      </div>
+      <h3 style="text-align:center;">Your Fleet</h3>
+      <div id="wz-my-grid" class="wz-grid"></div>
+      <div id="wz-confirm-box" style="text-align:center;">
+        <button class="btn-primary" id="wz-confirm-btn" onclick="wzConfirm()" disabled>Confirm Positions</button>
+      </div>
+      <div id="wz-enemy-section" style="display:none;">
+        <h3 style="text-align:center;">Enemy Waters</h3>
+        <div id="wz-enemy-grid" class="wz-grid"></div>
+      </div>
+      <div id="wz-result-msg" style="text-align:center;font-weight:700;min-height:24px;margin:10px 0;"></div>
+      <p id="wz-status" style="text-align:center;"></p>
     </div>
 
     <!-- Create Game -->
