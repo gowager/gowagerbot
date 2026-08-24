@@ -34,6 +34,13 @@ GoWager — a Telegram Mini App and Web App for friendly wagers between two play
 - Dealer sees their own hand and picked card face-up; player never sees them until reveal.
 - Most cards won takes the pot minus the 5% platform fee.
 
+### War Zone 🚀
+- Battleship-style hunt on a 4×4 grid (16 boxes).
+- Both players have 30 seconds to place 4 rockets; anyone who doesn't submit gets random positions.
+- Players then take turns firing single shots at the enemy grid: 💥 hit / ❌ miss markers.
+- First to find all 4 enemy rockets wins the pot minus the 5% fee.
+- Single match stake of 1–50 GHS per player; mid-game rejoin restores turn, scores, and shot history.
+
 ## Shared Systems
 - **Server-authoritative engines**: all choices, timers, scoring, and payouts run on the backend; clients only display state.
 - **Socket.IO events** for lobby updates, round flow, reveals, and game-over with automatic settlement.

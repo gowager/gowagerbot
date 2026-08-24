@@ -69,10 +69,25 @@ Rooms: `game_<id>` per game; sockets tagged with `userId`.
 | `rb_round_result` | S→room | card, guess, scores, roundWinner |
 | `game_over` | S→room | winner, final score, payout |
 
+**War Zone**:
+| Event | Direction | Payload |
+|---|---|---|
+| `wz_placement_started` | S→room | `{seconds}` 30s placement window |
+| `wz_place` | C→S | `{gameId, cells}` exactly 4 unique ints 0–15 |
+| `wz_placed` | S→player | positions locked, waiting for opponent |
+| `wz_battle_started` | S→room | `{turn}` creator fires first |
+| `wz_guess` | C→S | `{gameId, cell}` turn-enforced, no repeats |
+| `wz_result` | S→room | cell, hit, byCreator, hits, gameOver |
+| `wz_turn` | S→room | `{turn}` next shooter |
+| `wz_sync` | S→rejoiner | turn, hits, yourGuesses for mid-game reconnect |
+
+Placement timeout auto-fills random positions; hits are persisted as game scores so the standard `settleGame` path pays out.
+
 ## Game Engines
 - **Active games map**: `Map<gameId, {game, creatorSocket, opponentSocket, readyPlayers:Set, rb?}>`.
 - **RPS**: choices stored per round; timeout = no choice; two consecutive timeouts triggers resignation settlement.
 - **Red or Black**: `buildShoe()` = 4×52 shuffled with `crypto.randomInt`; `state.rb = {hand, pickedCard, scores}`; dealer's pick splices from hand server-side; loop until hand empty → `settleGame({reason:'completed'})`.
+- **War Zone**: `state.wz = {phase, creatorCells, opponentCells, hits, guesses, turn}`; 30s placement timer auto-fills stragglers; strictly alternating shots; 4 hits on enemy rockets wins.
 
 ## Frontend Structure
 Both clients are screen-div SPAs (`showScreen('screen-x')`) sharing logic patterns:
