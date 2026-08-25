@@ -971,12 +971,12 @@ h2 {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
-  max-width: 320px;
+  max-width: 340px;
   margin: 0 auto 12px;
 }
 .wz-cell {
-  width: 100%;
-  min-height: 70px;
+  aspect-ratio: 1;
+  min-height: 60px;
   border-radius: 8px;
   border: 2px solid #3a3f4b;
   background: #23262e;
@@ -986,6 +986,7 @@ h2 {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  box-sizing: border-box;
   transition: background 0.15s, border-color 0.15s;
 }
 .wz-cell:disabled { cursor: default; opacity: 0.85; }
