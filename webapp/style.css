@@ -719,18 +719,20 @@ p {
   margin: 0 auto 12px;
 }
 .wz-cell {
-  aspect-ratio: 1;
+  width: 100%;
+  min-height: 70px;
   border-radius: 8px;
   border: 2px solid #d7d7d7;
   background: #eef2f7;
-  font-size: 24px;
+  font-size: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
 }
-.wz-cell:disabled { cursor: default; }
-.wz-cell.mine { background: #ffffff; border-color: #6c8cff; }
-.wz-cell.hit { background: #ffe3e3; border-color: #e74c3c; }
-.wz-cell.sunk { background: #ffd6d6; border-color: #c0392b; }
-.wz-cell.miss { background: #dcefff; border-color: #7fb3ff; }
+.wz-cell:disabled { cursor: default; opacity: 0.85; }
+.wz-cell.mine { background: #ffffff; border-color: #6c8cff; color: #111; }
+.wz-cell.hit { background: #ffe3e3; border-color: #e74c3c; color: #111; }
+.wz-cell.sunk { background: #ffd6d6; border-color: #c0392b; color: #111; }
+.wz-cell.miss { background: #dcefff; border-color: #7fb3ff; color: #111; }

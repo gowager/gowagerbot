@@ -211,7 +211,7 @@ function wzRenderPlacementGrid() {
   for (let i = 0; i < 16; i++) {
     const cell = document.createElement('button');
     cell.className = 'wz-cell' + (wzMyCells.has(i) ? ' mine' : '');
-    cell.textContent = wzMyCells.has(i) ? WZ_EMOJI : '';
+    cell.textContent = wzMyCells.has(i) ? WZ_EMOJI : '·';
     cell.onclick = () => wzToggleCell(i);
     grid.appendChild(cell);
   }
@@ -274,10 +274,10 @@ socket.on('wz_battle_started', (data) => {
   for (let i = 0; i < 16; i++) {
     const cell = document.createElement('div');
     cell.className = 'wz-cell' + (wzMyCells.has(i) ? ' mine' : '');
-    cell.textContent = wzMyCells.has(i) ? WZ_EMOJI : '';
+    cell.textContent = wzMyCells.has(i) ? WZ_EMOJI : '·';
     grid.appendChild(cell);
   }
-  // Enemy grid starts blank and clickable on my turn
+  wzEnemyMarks = new Map();
   wzMyTurn = isCreator ? data.turn === 'creator' : data.turn === 'opponent';
   wzRenderEnemyGrid();
   document.getElementById('wz-enemy-section').style.display = 'block';
@@ -288,15 +288,18 @@ function wzRenderEnemyGrid() {
   const grid = document.getElementById('wz-enemy-grid');
   grid.innerHTML = '';
   for (let i = 0; i < 16; i++) {
-    const cell = document.createElement('button');
     const marked = wzEnemyMarks.get(i);
+    const cell = document.createElement('button');
     cell.className = 'wz-cell' + (marked ? ` ${marked.cls}` : '');
-    cell.textContent = marked ? marked.txt : '';
+    cell.textContent = marked ? marked.txt : '·';
     cell.disabled = !wzMyTurn || !!marked;
+    cell.dataset.idx = i;
     cell.onclick = () => {
-      if (!wzMyTurn) return;
-      socket.emit('wz_guess', { gameId: currentGame.id, cell: i });
+      if (!wzMyTurn || wzEnemyMarks.has(i)) return;
       wzMyTurn = false;
+      cell.disabled = true;
+      cell.textContent = '·';
+      socket.emit('wz_guess', { gameId: currentGame.id, cell: i });
       wzUpdateBattleStatus();
     };
     grid.appendChild(cell);

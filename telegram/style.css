@@ -975,18 +975,20 @@ h2 {
   margin: 0 auto 12px;
 }
 .wz-cell {
-  aspect-ratio: 1;
+  width: 100%;
+  min-height: 70px;
   border-radius: 8px;
   border: 2px solid #3a3f4b;
   background: #23262e;
   color: #e8eaf0;
-  font-size: 24px;
+  font-size: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
 }
-.wz-cell:disabled { cursor: default; }
+.wz-cell:disabled { cursor: default; opacity: 0.85; }
 .wz-cell.mine { background: #1c2333; border-color: #6c8cff; }
 .wz-cell.hit { background: #4a2626; border-color: #e74c3c; }
 .wz-cell.sunk { background: #5c2b2b; border-color: #ff6b6b; }
