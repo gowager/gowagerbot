@@ -345,6 +345,12 @@ p {
   margin-top: 5px;
 }
 
+.free-badge {
+  background: linear-gradient(135deg, #00b894, #00a381) !important;
+}
+
+.free-badge strong { font-size: 20px; }
+
 /* Room Code */
 .room-code {
   font-size: 36px;

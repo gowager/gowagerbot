@@ -501,6 +501,12 @@ h2 {
   font-size: 13px;
 }
 
+.free-badge {
+  background: linear-gradient(135deg, #00b894, #00a381) !important;
+  color: #fff;
+}
+.free-badge small { color: rgba(255,255,255,0.85); }
+
 /* Room Code */
 .room-code-box {
   background: var(--tg-section);

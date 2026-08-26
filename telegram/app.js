@@ -31,7 +31,7 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if (tg) tg.HapticFeedback?.selectionChanged();
-  if (id === 'screen-welcome') loadPendingGames();
+  if (id === 'screen-welcome') { loadPendingGames(); isFreeMode = false; }
   if (id === 'screen-create-game') applyFreeModeUI('rps');
   if (id === 'screen-create-rb') applyFreeModeUI('rb');
   if (id === 'screen-create-wz') applyFreeModeUI('wz');
