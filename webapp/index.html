@@ -137,16 +137,21 @@
         <label>Opponent's Telegram ID or @username</label>
         <input type="text" id="wz-opponent-id" placeholder="e.g. 123456789 or @axe773">
       </div>
-      <div class="form-group">
+      <div class="form-group" id="wz-stake-group">
         <label>Stake per Match (1-50 GHS)</label>
         <input type="number" id="wz-stake" min="1" max="50" value="2">
       </div>
-      <div class="total-display">
+      <div class="total-display" id="wz-pot-display">
         <strong>Total Pot: <span id="wz-pot">4.00</span> GHS</strong>
-        <p class="pot-hint">Your Deposit (your stake): <span id="wz-share">2.00</span> GHS</p>
-        <p class="pot-hint">30s to place 4 rockets - then take turns hunting - winner takes pot minus 5% fee</p>
+        <p class="pot-hint">Your Stake: <span id="wz-share">2.00</span> GHS (deducted from wallet)</p>
+        <p class="pot-hint">30s to place 4 rockets — then take turns hunting — winner takes pot minus 5% fee</p>
       </div>
-      <button class="btn-primary" onclick="createWzGame()">Create Game & Deposit</button>
+      <div class="total-display free-badge" id="wz-free-badge" style="display:none;">
+        <strong>Total Pot: FREE</strong>
+        <p class="pot-hint">Your Deposit: 0.00 GHS</p>
+        <p class="pot-hint">30s to place 4 rockets — then take turns hunting — no money involved!</p>
+      </div>
+      <button class="btn-primary" onclick="createWzGame()">Create Game</button>
       <button class="btn-back" onclick="showScreen('screen-wz-options')">← Back</button>
     </div>
 
@@ -172,7 +177,7 @@
       <p id="wz-status" style="text-align:center;"></p>
     </div>
 
-    <!-- Create Game Screen -->
+    <!-- Create Game Screen (RPS) -->
     <div id="screen-create-game" class="screen">
       <h2>Create Game</h2>
       <div class="form-group">
@@ -180,15 +185,15 @@
         <input type="text" id="opponent-id" placeholder="e.g. 123456789 or @axe773">
         <small>Enter your friend's Telegram user ID or @username</small>
       </div>
-      <div class="form-group">
+      <div class="form-group" id="rps-rounds-group">
         <label>Number of Rounds (1-25)</label>
         <input type="number" id="rounds" min="1" max="25" value="5">
       </div>
-      <div class="form-group">
+      <div class="form-group" id="rps-amount-group">
         <label>Amount per Round (GHS 1-50)</label>
         <input type="number" id="amount" min="1" max="50" value="1">
       </div>
-      <div class="form-group">
+      <div class="form-group" id="rps-seconds-group">
         <label>Seconds per Round</label>
         <select id="round-seconds">
           <option value="30">30 seconds</option>
@@ -196,14 +201,14 @@
           <option value="60" selected>60 seconds</option>
         </select>
       </div>
-      <div class="form-group">
+      <div class="form-group" id="rps-payout-group">
         <label>Payout Style</label>
         <select id="payout-style">
           <option value="winner_takes_all">Winner Takes All</option>
           <option value="winner_per_game">Winner Per Game</option>
         </select>
       </div>
-      <div class="form-group">
+      <div class="form-group" id="rps-resign-group">
         <label>If Someone Resigns</label>
         <select id="resign-rule">
           <option value="full_pot">Pay Full Pot to Winner</option>
@@ -214,12 +219,17 @@
         <label>What Counts as Resignation</label>
         <p class="hint">Player does not choose anything 2 games in a row</p>
       </div>
-      <div class="total-display">
+      <div class="total-display" id="rps-pot-display">
         <strong>Total Pot: <span id="total-pot">10.00</span> GHS</strong>
-        <p>Your Deposit (your stake): <span id="your-share">5.00</span> GHS</p>
-        <p class="pot-hint">Total pot = your stake + opponent's stake</p>
+        <p>Your Stake: <span id="your-share">5.00</span> GHS (deducted from wallet)</p>
+        <p class="pot-hint">Winner gets pot minus 5% fee — credited to wallet instantly</p>
       </div>
-      <button class="btn-primary" onclick="createGame()">Create Game & Deposit</button>
+      <div class="total-display free-badge" id="rps-free-badge" style="display:none;">
+        <strong>Total Pot: FREE</strong>
+        <p>Your Deposit: 0.00 GHS</p>
+        <p class="pot-hint">No money involved — just play for fun!</p>
+      </div>
+      <button class="btn-primary" onclick="createGame()">Create Game</button>
       <button class="btn-back" onclick="showScreen('screen-game-options')">← Back</button>
     </div>
 
@@ -238,20 +248,25 @@
         </div>
         <small>Dealer picks which card to play. Player guesses Red or Black.</small>
       </div>
-      <div class="form-group">
+      <div class="form-group" id="rb-cards-group">
         <label>Number of Cards (1-52)</label>
         <input type="number" id="rb-cards" min="1" max="52" value="5">
       </div>
-      <div class="form-group">
+      <div class="form-group" id="rb-bet-group">
         <label>Bet per Card (1-20 GHS)</label>
         <input type="number" id="rb-bet" min="1" max="20" value="5">
       </div>
-      <div class="total-display">
+      <div class="total-display" id="rb-pot-display">
         <strong>Total Pot: <span id="rb-pot">50.00</span> GHS</strong>
-        <p class="pot-hint">Your Deposit (your stake): <span id="rb-share">25.00</span> GHS</p>
-        <p class="pot-hint">Bet per card × cards × 2 players - winner takes the pot minus 5% fee</p>
+        <p class="pot-hint">Your Stake: <span id="rb-share">25.00</span> GHS (deducted from wallet)</p>
+        <p class="pot-hint">Bet × cards × 2 players — winner takes pot minus 5% fee</p>
       </div>
-      <button class="btn-primary" onclick="createRbGame()">Create Game & Deposit</button>
+      <div class="total-display free-badge" id="rb-free-badge" style="display:none;">
+        <strong>Total Pot: FREE</strong>
+        <p class="pot-hint">Your Deposit: 0.00 GHS</p>
+        <p class="pot-hint">No money involved — just play for fun!</p>
+      </div>
+      <button class="btn-primary" onclick="createRbGame()">Create Game</button>
       <button class="btn-back" onclick="showScreen('screen-rb-options')">← Back</button>
     </div>
 
@@ -314,7 +329,7 @@
     <div id="screen-game-rules" class="screen">
       <h2>Game Rules</h2>
       <div id="rules-content" class="rules-box"></div>
-      <button class="btn-primary" onclick="agreeAndDeposit()">I Agree & Deposit</button>
+      <button class="btn-primary" onclick="agreeAndDeposit()">I Agree & Play</button>
       <button class="btn-back" onclick="showScreen('screen-join-game')">← Back</button>
     </div>
 

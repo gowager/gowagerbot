@@ -22,6 +22,33 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   if (id === 'screen-welcome') loadPendingGames();
+  if (id === 'screen-create-game') applyFreeModeUI('rps');
+  if (id === 'screen-create-rb') applyFreeModeUI('rb');
+  if (id === 'screen-create-wz') applyFreeModeUI('wz');
+}
+
+function applyFreeModeUI(type) {
+  const free = isFreeMode;
+  const prefix = type === 'rps' ? 'rps' : type === 'rb' ? 'rb' : 'wz';
+  // Toggle pot display vs free badge
+  const potDisplay = document.getElementById(`${prefix}-pot-display`);
+  const freeBadge  = document.getElementById(`${prefix}-free-badge`);
+  if (potDisplay) potDisplay.style.display = free ? 'none' : 'block';
+  if (freeBadge)  freeBadge.style.display  = free ? 'block' : 'none';
+  // Hide amount/stake inputs in free mode
+  const amountIds = {
+    rps: ['rps-amount-group'],
+    rb:  ['rb-bet-group'],
+    wz:  ['wz-stake-group'],
+  };
+  (amountIds[type] || []).forEach(elId => {
+    const el = document.getElementById(elId);
+    if (el) el.style.display = free ? 'none' : 'block';
+  });
+  // Show wallet balance on paid create screens
+  if (!free && currentUser) {
+    api(`/api/wallet/${currentUser.id}`).then(w => updateWallet(w.balance));
+  }
 }
 
 function showToast(message, type = 'info') {
@@ -579,15 +606,8 @@ async function joinGame() {
 }
 
 async function agreeAndDeposit() {
-  // Free games: skip deposit screen, join directly
-  if (currentGame.is_free) {
-    await processDeposit();
-    return;
-  }
-  // Each player deposits their full stake: rounds (cards) × amount per round
-  const yourStake = currentGame.rounds * currentGame.amount_per_round;
-  document.getElementById('deposit-amount').textContent = yourStake.toFixed(2);
-  showScreen('screen-deposit');
+  // Stake is already deducted from wallet at game creation / join — no separate deposit step
+  await processDeposit();
 }
 
 async function processDeposit() {

@@ -32,6 +32,32 @@ function showScreen(id) {
   document.getElementById(id).classList.add('active');
   if (tg) tg.HapticFeedback?.selectionChanged();
   if (id === 'screen-welcome') loadPendingGames();
+  if (id === 'screen-create-game') applyFreeModeUI('rps');
+  if (id === 'screen-create-rb') applyFreeModeUI('rb');
+  if (id === 'screen-create-wz') applyFreeModeUI('wz');
+}
+
+function applyFreeModeUI(type) {
+  const free = isFreeMode;
+  const prefix = type === 'rps' ? 'rps' : type === 'rb' ? 'rb' : 'wz';
+  const potDisplay = document.getElementById(`${prefix}-pot-display`);
+  const freeBadge  = document.getElementById(`${prefix}-free-badge`);
+  if (potDisplay) potDisplay.style.display = free ? 'none' : '';
+  if (freeBadge)  freeBadge.style.display  = free ? '' : 'none';
+  const shareRow = document.getElementById(`${prefix}-share-row`);
+  if (shareRow) shareRow.style.display = free ? 'none' : '';
+  const amountIds = {
+    rps: ['rps-amount-group'],
+    rb:  ['rb-bet-group'],
+    wz:  ['wz-stake-group'],
+  };
+  (amountIds[type] || []).forEach(elId => {
+    const el = document.getElementById(elId);
+    if (el) el.style.display = free ? 'none' : '';
+  });
+  if (!free && currentUser) {
+    api(`/api/wallet/${currentUser.id}`).then(w => updateWallet(w.balance));
+  }
 }
 
 function showToast(message, type = 'info') {
@@ -615,15 +641,8 @@ async function joinGame() {
 }
 
 async function agreeAndDeposit() {
-  // Free games: skip deposit screen, join directly
-  if (currentGame.is_free) {
-    await processDeposit();
-    return;
-  }
-  // Each player deposits their full stake: rounds (cards) × amount per round
-  const yourStake = currentGame.rounds * currentGame.amount_per_round;
-  document.getElementById('deposit-amount').textContent = yourStake.toFixed(2) + ' GHS';
-  showScreen('screen-deposit');
+  // Stake is already deducted from wallet at game creation / join — no separate deposit step
+  await processDeposit();
 }
 
 async function processDeposit() {
