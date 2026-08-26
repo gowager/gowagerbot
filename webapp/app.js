@@ -983,6 +983,35 @@ socket.on('error', (message) => {
 
 // ---------- WALLET ----------
 
+async function openWallet() {
+  showScreen('screen-wallet');
+  if (currentUser) {
+    const wallet = await api(`/api/wallet/${currentUser.id}`);
+    updateWallet(wallet.balance);
+    loadTransactions();
+  }
+}
+
+async function depositFunds() {
+  const amount = parseInt(document.getElementById('deposit-wallet-amount').value);
+  if (!amount || amount < 1 || amount > 500) {
+    showToast('Enter a valid amount (1–500 GHS)', 'error');
+    return;
+  }
+  try {
+    const data = await api('/api/deposit', {
+      method: 'POST',
+      body: JSON.stringify({ userId: currentUser.id, amount }),
+    });
+    updateWallet(data.wallet.balance);
+    document.getElementById('deposit-wallet-amount').value = '';
+    showToast(`Deposited ${amount.toFixed(2)} GHS successfully!`, 'success');
+    loadTransactions();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
 async function withdraw() {
   const amount = parseInt(document.getElementById('withdraw-amount').value);
   if (!amount || amount < 1 || amount > 50) {

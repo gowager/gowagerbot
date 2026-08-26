@@ -365,6 +365,28 @@ app.post('/api/withdraw', async (req, res) => {
   }
 });
 
+// Deposit funds (production: integrate with Paystack / Flutterwave / MoMo)
+app.post('/api/deposit', async (req, res) => {
+  if (!checkRateLimit(req.ip, 5)) return res.status(429).json({ error: 'Too many requests' });
+  const { userId, amount } = req.body;
+  const num = Number(amount);
+  if (!userId || !Number.isFinite(num) || num < 1 || num > 500) {
+    return res.status(400).json({ error: 'Deposit amount must be 1–500 GHS' });
+  }
+  try {
+    await db.addFunds(userId, num);
+    await db.createTransaction({
+      user_id: userId,
+      type: 'deposit',
+      amount: num,
+      status: 'completed',
+    });
+    res.json({ success: true, wallet: await db.getWallet(userId) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Get transactions
 app.get('/api/transactions/:userId', async (req, res) => {
   if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });

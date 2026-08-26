@@ -20,6 +20,7 @@
         <button class="btn-free" onclick="startFreePlay()">🎉 Play Free with Friends</button>
         <button class="btn-primary" onclick="showScreen('screen-games')">Wager with Friends</button>
         <button class="btn-outline" onclick="showScreen('screen-howto')">How To Use App</button>
+        <button class="btn-outline" onclick="openWallet()">💰 Wallet</button>
       </div>
       <div class="wallet-chip" onclick="showScreen('screen-wallet')">
         <span>💰</span>
@@ -463,7 +464,12 @@
         <small>GHS</small>
       </div>
       <div class="field">
-        <label>Withdraw Amount</label>
+        <label>Deposit Amount (GHS)</label>
+        <input type="number" id="deposit-wallet-amount" min="1" max="500" placeholder="e.g. 10">
+      </div>
+      <button class="btn-primary" onclick="depositFunds()">Deposit</button>
+      <div class="field">
+        <label>Withdraw Amount (GHS)</label>
         <input type="number" id="withdraw-amount" min="1" max="50" placeholder="Enter amount">
       </div>
       <button class="btn-primary" onclick="withdraw()">Withdraw</button>
