@@ -47,6 +47,22 @@ body {
   to { opacity: 1; transform: translateX(0); }
 }
 
+@keyframes staggerIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes resultFlash {
+  0% { transform: scale(0.9); opacity: 0; }
+  60% { transform: scale(1.03); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
 /* Header */
 .header {
   display: flex;
@@ -114,17 +130,23 @@ h2 {
   color: white;
   border: none;
   padding: 14px 20px;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   width: 100%;
-  transition: background 0.2s, transform 0.1s;
+  transition: background 0.15s, transform 0.12s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.15s;
+  box-shadow: 0 4px 12px rgba(78, 158, 255, 0.2);
+}
+
+.btn-primary:hover {
+  box-shadow: 0 6px 18px rgba(78, 158, 255, 0.35);
 }
 
 .btn-primary:active {
-  transform: scale(0.98);
+  transform: scale(0.96);
   background: var(--tg-accent-hover);
+  box-shadow: 0 2px 6px rgba(78, 158, 255, 0.25);
 }
 
 .btn-outline {
@@ -132,14 +154,16 @@ h2 {
   color: var(--tg-accent);
   border: 2px solid var(--tg-accent);
   padding: 12px 20px;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   width: 100%;
+  transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1), background 0.15s;
 }
 
 .btn-outline:active {
+  transform: scale(0.96);
   background: rgba(78, 158, 255, 0.1);
 }
 
@@ -159,11 +183,18 @@ h2 {
   color: white;
   border: none;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
   width: 100%;
+  transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.15s;
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.2);
+}
+
+.btn-danger:active {
+  transform: scale(0.96);
+  box-shadow: 0 2px 6px rgba(231, 76, 60, 0.25);
 }
 
 /* Hero */
@@ -621,6 +652,8 @@ h2 {
   background: var(--tg-section);
   border-radius: 14px;
   padding: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  animation: staggerIn 0.4s cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 .stat {
@@ -643,6 +676,11 @@ h2 {
 .stat strong {
   font-size: 24px;
   color: var(--tg-accent);
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.stat strong.bump {
+  animation: popIn 0.25s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .stat small {
@@ -659,6 +697,8 @@ h2 {
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.2);
+  animation: staggerIn 0.4s cubic-bezier(0.2, 0, 0, 1) 0.08s both;
 }
 
 .timer-fill {
@@ -668,8 +708,9 @@ h2 {
   bottom: 0;
   background: linear-gradient(90deg, var(--tg-accent), #79b6ff);
   width: 100%;
-  opacity: 0.3;
+  opacity: 0.25;
   transition: width 1s linear;
+  border-radius: 20px;
 }
 
 .timer-bar span {
@@ -677,6 +718,7 @@ h2 {
   z-index: 1;
   font-size: 18px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .rps-choices {
@@ -689,29 +731,60 @@ h2 {
 .rps-btn {
   background: var(--tg-section);
   border: 2px solid transparent;
-  border-radius: 16px;
-  padding: 20px 0;
-  width: 100px;
+  border-radius: 18px;
+  padding: 22px 0;
+  width: 105px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  transition: all 0.2s;
+  transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1), border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  animation: staggerIn 0.4s cubic-bezier(0.2, 0, 0, 1) both;
 }
 
-.rps-btn:active {
+.rps-btn:nth-child(1) { animation-delay: 0.16s; }
+.rps-btn:nth-child(2) { animation-delay: 0.24s; }
+.rps-btn:nth-child(3) { animation-delay: 0.32s; }
+
+.rps-btn:hover {
   border-color: var(--tg-accent);
   background: var(--tg-secondary-bg);
 }
 
+.rps-btn:active {
+  transform: scale(0.96);
+  border-color: var(--tg-accent);
+  background: var(--tg-secondary-bg);
+  box-shadow: 0 2px 6px rgba(78, 158, 255, 0.15);
+}
+
 .rps-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.rps-btn.picked {
+  border-color: var(--tg-accent);
+  background: var(--tg-accent);
+  box-shadow: 0 4px 14px rgba(78, 158, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.rps-btn.picked span:last-child {
+  color: #fff;
 }
 
 .rps-emoji {
-  font-size: 36px;
+  font-size: 38px;
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1);
+}
+
+.rps-btn:hover .rps-emoji {
+  transform: scale(1.1);
 }
 
 .rps-btn span:last-child {
@@ -722,36 +795,42 @@ h2 {
 .round-result {
   text-align: center;
   padding: 14px;
-  border-radius: 12px;
+  border-radius: 14px;
   font-weight: 600;
   min-height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 15px;
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s;
 }
 
 .round-result.win {
   background: rgba(76, 175, 80, 0.2);
   color: #81c784;
+  animation: resultFlash 0.35s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .round-result.lose {
   background: rgba(231, 76, 60, 0.2);
   color: #e57373;
+  animation: resultFlash 0.35s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .round-result.tie {
   background: rgba(255, 193, 7, 0.2);
   color: #ffd54f;
+  animation: resultFlash 0.35s cubic-bezier(0.2, 0, 0, 1);
 }
 
 /* Game Over */
 .game-over-box {
   background: var(--tg-section);
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 30px 20px;
   text-align: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  animation: staggerIn 0.4s cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 .game-over-box .winner {
@@ -759,6 +838,7 @@ h2 {
   font-weight: 800;
   color: #81c784;
   margin-bottom: 8px;
+  animation: popIn 0.3s cubic-bezier(0.2, 0, 0, 1) 0.15s both;
 }
 
 .game-over-box .amount {
@@ -766,6 +846,7 @@ h2 {
   font-weight: 800;
   color: var(--tg-accent);
   margin: 12px 0;
+  animation: popIn 0.3s cubic-bezier(0.2, 0, 0, 1) 0.25s both;
 }
 
 .game-over-box .fee {

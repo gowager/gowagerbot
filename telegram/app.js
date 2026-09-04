@@ -798,7 +798,10 @@ function makeChoice(choice) {
   myChoice = choice;
   socket.emit('submit_choice', { gameId: currentGame.id, choice });
 
-  document.querySelectorAll('.rps-btn').forEach(btn => btn.disabled = true);
+  document.querySelectorAll('.rps-btn').forEach(btn => {
+    btn.disabled = true;
+    if (btn.getAttribute('data-choice') === choice) btn.classList.add('picked');
+  });
   document.getElementById('round-result').textContent = 'Waiting for opponent...';
   document.getElementById('round-result').className = 'round-result';
   if (tg) tg.HapticFeedback?.impactOccurred('medium');
@@ -945,7 +948,7 @@ socket.on('round_started', (data) => {
   document.getElementById('current-round').textContent = data.round;
   document.getElementById('total-rounds').textContent = currentGame.rounds;
   myChoice = null;
-  document.querySelectorAll('.rps-btn').forEach(btn => btn.disabled = false);
+  document.querySelectorAll('.rps-btn').forEach(btn => { btn.disabled = false; btn.classList.remove('picked'); });
   document.getElementById('round-result').textContent = '';
   document.getElementById('round-result').className = 'round-result';
   startTimer(data.deadline);
@@ -972,11 +975,20 @@ socket.on('round_result', (data) => {
   } else if (data.roundWinner === myId) {
     resultEl.textContent = `You chose ${cap(myChoiceMade)}, opponent chose ${cap(oppChoiceMade)} — You win! 🎉`;
     resultEl.className = 'round-result win';
+    bumpScore('my-score');
   } else {
     resultEl.textContent = `You chose ${cap(myChoiceMade)}, opponent chose ${cap(oppChoiceMade)} — You lose!`;
     resultEl.className = 'round-result lose';
+    bumpScore('opp-score');
   }
 });
+
+function bumpScore(id) {
+  const el = document.getElementById(id);
+  el.classList.remove('bump');
+  void el.offsetWidth;
+  el.classList.add('bump');
+}
 
 socket.on('game_over', (data) => {
   clearInterval(timerInterval);

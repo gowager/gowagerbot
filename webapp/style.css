@@ -41,6 +41,27 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes staggerIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes resultFlash {
+  0% { transform: scale(0.9); opacity: 0; }
+  60% { transform: scale(1.03); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
 .logo {
   font-size: 60px;
   text-align: center;
@@ -96,23 +117,30 @@ p {
   color: white;
   border: none;
   padding: 14px 20px;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.15s cubic-bezier(0.2, 0, 0, 1);
   width: 100%;
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.25);
 }
 
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4);
+}
+
+.btn-primary:active {
+  transform: scale(0.96);
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
 .btn-secondary {
@@ -120,16 +148,21 @@ p {
   color: #333;
   border: none;
   padding: 14px 20px;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1), background 0.15s;
   width: 100%;
 }
 
 .btn-secondary:hover {
-  background: #e0e0e0;
+  background: #e4e4e4;
+}
+
+.btn-secondary:active {
+  transform: scale(0.96);
+  background: #d8d8d8;
 }
 
 .btn-secondary:disabled {
@@ -171,11 +204,18 @@ p {
   color: white;
   border: none;
   padding: 12px 20px;
-  border-radius: 12px;
+  border-radius: 14px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
   width: 100%;
+  transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.15s;
+  box-shadow: 0 4px 12px rgba(231, 76, 60, 0.25);
+}
+
+.btn-danger:active {
+  transform: scale(0.96);
+  box-shadow: 0 2px 6px rgba(231, 76, 60, 0.3);
 }
 
 .wallet-bar {
@@ -422,8 +462,10 @@ p {
   display: flex;
   justify-content: space-around;
   background: #f8f9fa;
-  padding: 15px;
-  border-radius: 12px;
+  padding: 16px;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  animation: staggerIn 0.4s cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 .score-box span {
@@ -431,12 +473,18 @@ p {
   color: #333;
 }
 
+.score-box strong.bump {
+  display: inline-block;
+  animation: popIn 0.25s cubic-bezier(0.2, 0, 0, 1);
+}
+
 .round-info {
   display: flex;
   justify-content: space-around;
   background: #f0f4ff;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 14px;
+  animation: staggerIn 0.4s cubic-bezier(0.2, 0, 0, 1) 0.08s both;
 }
 
 .round-info span {
@@ -452,83 +500,114 @@ p {
 }
 
 .choice-btn {
-  background: #f8f9fa;
+  background: #fff;
   border: 2px solid #e0e0e0;
-  border-radius: 16px;
-  padding: 20px 15px;
+  border-radius: 18px;
+  padding: 22px 15px;
   font-size: 14px;
   font-weight: 600;
   color: #333;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: transform 0.12s cubic-bezier(0.2, 0, 0, 1), border-color 0.15s, box-shadow 0.15s, background 0.15s;
   flex: 1;
-  max-width: 100px;
+  max-width: 110px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  animation: staggerIn 0.4s cubic-bezier(0.2, 0, 0, 1) both;
 }
+
+.choice-btn:nth-child(1) { animation-delay: 0.16s; }
+.choice-btn:nth-child(2) { animation-delay: 0.24s; }
+.choice-btn:nth-child(3) { animation-delay: 0.32s; }
 
 .choice-btn:hover {
   border-color: #667eea;
   background: #f0f4ff;
   transform: translateY(-3px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.2);
+}
+
+.choice-btn:active {
+  transform: scale(0.96);
+  box-shadow: 0 2px 6px rgba(102, 126, 234, 0.2);
 }
 
 .choice-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
+}
+
+.choice-btn.picked {
+  border-color: #667eea;
+  background: #667eea;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.35);
+  transform: scale(1.05);
 }
 
 .choice-btn .emoji {
-  font-size: 30px;
+  font-size: 32px;
   display: block;
   margin-bottom: 5px;
 }
 
 .round-result {
   text-align: center;
-  padding: 15px;
-  border-radius: 12px;
+  padding: 16px;
+  border-radius: 14px;
   font-weight: 600;
   min-height: 50px;
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s;
 }
 
 .round-result.win {
   background: #d4edda;
   color: #155724;
+  animation: resultFlash 0.35s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .round-result.lose {
   background: #f8d7da;
   color: #721c24;
+  animation: resultFlash 0.35s cubic-bezier(0.2, 0, 0, 1);
 }
 
 .round-result.tie {
   background: #fff3cd;
   color: #856404;
+  animation: resultFlash 0.35s cubic-bezier(0.2, 0, 0, 1);
 }
 
 /* Game Over */
 .game-over-box {
   background: #f8f9fa;
-  border-radius: 12px;
-  padding: 20px;
+  border-radius: 16px;
+  padding: 28px 20px;
   text-align: center;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  animation: staggerIn 0.4s cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 .game-over-box .winner {
-  font-size: 20px;
-  font-weight: bold;
+  font-size: 22px;
+  font-weight: 800;
   color: #28a745;
   margin-bottom: 10px;
+  animation: popIn 0.3s cubic-bezier(0.2, 0, 0, 1) 0.15s both;
 }
 
 .game-over-box .amount {
-  font-size: 28px;
-  font-weight: bold;
-  color: #667eea;
-  margin: 10px 0;
+  font-size: 32px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin: 12px 0;
+  animation: popIn 0.3s cubic-bezier(0.2, 0, 0, 1) 0.25s both;
 }
 
 .game-over-box .fee {

@@ -367,11 +367,11 @@
           <span>Time: <strong id="timer">60</strong>s</span>
         </div>
       </div>
-      <div class="choice-buttons">
-        <button class="choice-btn" onclick="makeChoice('rock')">✊<br>Rock</button>
-        <button class="choice-btn" onclick="makeChoice('paper')">✋<br>Paper</button>
-        <button class="choice-btn" onclick="makeChoice('scissors')">✌️<br>Scissors</button>
-      </div>
+  <div class="choice-buttons">
+    <button class="choice-btn" data-choice="rock" onclick="makeChoice('rock')">✊<br>Rock</button>
+    <button class="choice-btn" data-choice="paper" onclick="makeChoice('paper')">✋<br>Paper</button>
+    <button class="choice-btn" data-choice="scissors" onclick="makeChoice('scissors')">✌️<br>Scissors</button>
+  </div>
       <div id="round-result" class="round-result"></div>
       <div id="opponent-hint" style="min-height:20px;font-size:14px;color:#0a7d33;margin:6px 0;"></div>
       <button class="btn-danger" onclick="confirmResign()">Resign</button>
