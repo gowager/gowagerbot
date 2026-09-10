@@ -599,21 +599,35 @@ app.post('/api/paystack/recipient', async (req, res) => {
     const user = await db.getUserById(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Try to resolve the account name; in test mode Paystack limits real
-    // bank resolution to 3/day — fall back gracefully so withdrawals still work.
-    let accountName = 'Customer';
-    try {
-      const resolved = await paystack(`/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`);
-      accountName = resolved.data.account_name || accountName;
-    } catch (_) { /* resolution unavailable — proceed with default name */ }
+    // Test mode: Paystack limits real-bank resolution to 3/day and never pays
+    // real banks, so route every payout to the sandbox transfer sink
+    // (Zenith 057 — account 0000000000). Live mode stays fully real.
+    const isTest = String(process.env.PAYSTACK_SECRET_KEY || '').startsWith('sk_test_');
+
+    let recipientBankCode;
+    let recipientAccount;
+    let accountName;
+    if (isTest) {
+      recipientBankCode = '057';
+      recipientAccount = '0000000000';
+      accountName = 'Test Recipient';
+    } else {
+      recipientBankCode = String(bankCode);
+      recipientAccount = String(accountNumber);
+      accountName = 'Customer';
+      try {
+        const resolved = await paystack(`/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`);
+        accountName = resolved.data.account_name || accountName;
+      } catch (_) { /* resolution unavailable — proceed with default name */ }
+    }
 
     const created = await paystack('/transferrecipient', {
       method: 'POST',
       body: {
         type: 'nuban',
         name: accountName,
-        account_number: String(accountNumber),
-        bank_code: String(bankCode),
+        account_number: recipientAccount,
+        bank_code: recipientBankCode,
         currency: PAYSTACK_CURRENCY,
       },
     });
