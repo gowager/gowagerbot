@@ -116,7 +116,7 @@ Creates a new game and deducts the creator's deposit (their full stake: rounds Ã
 
 **Validation Rules**:
 - `rounds`: 1-25 (integer)
-- `amountPerRound`: 1-50 (integer, GHS)
+- `amountPerRound`: 1-50 (integer, NGN)
 - `roundSeconds`: 30, 45, or 60
 - `payoutStyle`: `winner_takes_all` or `winner_per_game`
 - `resignRule`: `full_pot` or `per_game`
@@ -532,7 +532,7 @@ socket.on('error', (message) => {
 |-------------|-------|-------------|
 | 400 | `Invalid telegram ID` | Missing or invalid telegram ID |
 | 400 | `Rounds must be 1-25` | Invalid rounds value |
-| 400 | `Amount must be 1-50 GHS` | Invalid amount value |
+| 400 | `Amount must be 1-50 NGN` | Invalid amount value |
 | 400 | `Round seconds must be 30, 45, or 60` | Invalid time value |
 | 400 | `Invalid payout style` | Invalid payout style |
 | 400 | `Invalid resign rule` | Invalid resign rule |

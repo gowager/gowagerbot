@@ -275,7 +275,7 @@ The backend needs to allow requests from your frontend domains.
 - Check that both players are connected to the same room code
 
 ### "Insufficient balance"
-- New accounts start with 0 GHS
+- New accounts start with 0 NGN
 - During local testing, credit your wallet with the demo endpoint:
   `POST /api/demo/credit` with body `{ "userId": "...", "amount": 100 }`
 - In production, players must fund their wallets through a payment gateway
@@ -311,6 +311,6 @@ You've successfully deployed GoWager for free! Your friends can now:
 1. Open the Telegram bot
 2. Play **free** games with friends (no money involved)
 3. Play **paid** games with real stakes
-4. Win real money (well, real GHS!)
+4. Win real money (well, real NGN!)
 
 If you have any issues, check the [learnings.md](learnings.md) file for common problems and solutions.

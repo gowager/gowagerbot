@@ -147,7 +147,7 @@ CREATE TABLE transactions (
 3. Selects Rock Paper Scissors → Create/Join options
 4. Clicks "Create Game" → Create game form
 5. Enters opponent's Telegram ID
-6. Sets rounds (1-25), amount (1-50 GHS), time (30/45/60s)
+6. Sets rounds (1-25), amount (1-50 NGN), time (30/45/60s)
 7. Sets payout style and resign rules
 8. Clicks "Create & Deposit"
 9. Server validates and deducts deposit
@@ -233,13 +233,13 @@ Refund Each = (Total Pot / 2) × 0.95
 GoWager Fee = Total Pot × 0.05
 ```
 
-### Worked Example (4 rounds × 2 GHS)
+### Worked Example (4 rounds × 2 NGN)
 ```
-Your Stake = 4 × 2 = 8 GHS
-Opponent's Stake = 8 GHS
-Total Pot = 16 GHS
-Winner (winner-takes-all) receives = 16 × 0.95 = 15.20 GHS
-GoWager fee = 16 × 0.05 = 0.80 GHS
+Your Stake = 4 × 2 = 8 NGN
+Opponent's Stake = 8 NGN
+Total Pot = 16 NGN
+Winner (winner-takes-all) receives = 16 × 0.95 = 15.20 NGN
+GoWager fee = 16 × 0.05 = 0.80 NGN
 ```
 
 ---

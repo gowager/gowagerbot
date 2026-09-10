@@ -74,12 +74,12 @@ This document captures the key learnings, decisions, and insights from building 
 ### 4. House Fee & Full-Stake Deposits
 **Learning**: A 5% fee is simple to implement and understand. Each player deposits their **full stake** (rounds × amount per round) into escrow. The total pot is both players' stakes combined.
 
-**Example**: 4 rounds × 2 GHS per round
-- Your deposit (your stake): **8 GHS**
-- Opponent's deposit: **8 GHS**
-- **Total pot: 16 GHS**
+**Example**: 4 rounds × 2 NGN per round
+- Your deposit (your stake): **8 NGN**
+- Opponent's deposit: **8 NGN**
+- **Total pot: 16 NGN**
 
-**Winner Takes All**: Winner receives **15.20 GHS** (95% of pot), GoWager fee: **0.80 GHS** (5%)
+**Winner Takes All**: Winner receives **15.20 NGN** (95% of pot), GoWager fee: **0.80 NGN** (5%)
 
 **Winner Per Game / Resign Per Game**: Each completed game is settled individually (winner gets 95% of that game's stake, GoWager takes 5% per game played). Unplayed games are refunded in full.
 
@@ -97,7 +97,7 @@ This document captures the key learnings, decisions, and insights from building 
 
 **Validations**:
 - Rounds: 1-25 (integer)
-- Amount: 1-50 GHS (integer)
+- Amount: 1-50 NGN (integer)
 - Round seconds: 30, 45, or 60
 - Payout style: winner_takes_all or winner_per_game
 - Resign rule: full_pot or per_game

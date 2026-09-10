@@ -206,14 +206,14 @@ app.post('/api/games', async (req, res) => {
     if (!validateCreatorRole(creatorRole)) return res.status(400).json({ error: 'Choose to be Dealer or Player' });
     if (!validateRounds(rounds) || Number(rounds) > 52) return res.status(400).json({ error: 'Cards must be 1-52' });
     if (!free && !validateAmount(amountPerRound) || (free === false && Number(amountPerRound) > 20)) {
-      return res.status(400).json({ error: 'Bet must be 1-20 GHS per game' });
+      return res.status(400).json({ error: 'Bet must be 1-20 NGN per game' });
     }
   } else if (type === 'warzone') {
     // Single-match stake: amount is the whole match bet, rounds forced to 1
-    if (!free && !validateAmount(amountPerRound)) return res.status(400).json({ error: 'Stake must be 1-50 GHS per match' });
+    if (!free && !validateAmount(amountPerRound)) return res.status(400).json({ error: 'Stake must be 1-50 NGN per match' });
   } else {
     if (!validateRounds(rounds)) return res.status(400).json({ error: 'Rounds must be 1-25' });
-    if (!free && !validateAmount(amountPerRound)) return res.status(400).json({ error: 'Amount must be 1-50 GHS' });
+    if (!free && !validateAmount(amountPerRound)) return res.status(400).json({ error: 'Amount must be 1-50 NGN' });
   }
   if (!free && !validateRoundSeconds(roundSeconds)) return res.status(400).json({ error: 'Round seconds must be 30, 45, or 60' });
   if (!validatePayoutStyle(payoutStyle)) return res.status(400).json({ error: 'Invalid payout style' });
@@ -235,7 +235,7 @@ app.post('/api/games', async (req, res) => {
     if (!free) {
       const wallet = await db.getWallet(creator.id);
       if (Number(wallet.balance) < playerStake) {
-        return res.status(400).json({ error: `Insufficient balance. Need ${playerStake} GHS (your stake), have ${wallet.balance} GHS` });
+        return res.status(400).json({ error: `Insufficient balance. Need ${playerStake} NGN (your stake), have ${wallet.balance} NGN` });
       }
 
       // Deduct creator's full stake
@@ -300,7 +300,7 @@ app.post('/api/games/:roomCode/join', async (req, res) => {
     if (!isFree) {
       const wallet = await db.getWallet(playerId);
       if (Number(wallet.balance) < playerStake) {
-        return res.status(400).json({ error: `Insufficient balance. Need ${playerStake} GHS (your stake), have ${wallet.balance} GHS` });
+        return res.status(400).json({ error: `Insufficient balance. Need ${playerStake} NGN (your stake), have ${wallet.balance} NGN` });
       }
 
       await db.deductFunds(playerId, playerStake);
@@ -423,7 +423,7 @@ app.post('/api/deposit', async (req, res) => {
   const { userId, amount } = req.body;
   const num = Number(amount);
   if (!userId || !Number.isFinite(num) || num < 1 || num > 500) {
-    return res.status(400).json({ error: 'Deposit amount must be 1–500 GHS' });
+    return res.status(400).json({ error: 'Deposit amount must be 1–500 NGN' });
   }
   try {
     await db.addFunds(userId, num);
@@ -449,7 +449,7 @@ app.post('/api/paystack/initialize', async (req, res) => {
   const { userId, amount, email, callbackUrl } = req.body;
   const num = Number(amount);
   if (!userId || !Number.isInteger(num) || num < 1 || num > 500) {
-    return res.status(400).json({ error: 'Deposit amount must be 1–500 GHS' });
+    return res.status(400).json({ error: 'Deposit amount must be 1–500 NGN' });
   }
   try {
     const user = await db.getUserById(userId);
@@ -473,7 +473,7 @@ app.post('/api/paystack/initialize', async (req, res) => {
       method: 'POST',
       body: {
         email: customerEmail,
-        amount: num * 100, // GHS -> pesewas / NGN -> kobo
+        amount: num * 100, // smallest unit: kobo (NGN) / pesewas (GHS)
         currency: PAYSTACK_CURRENCY,
         reference,
         channels: ['card', 'mobile_money', 'bank'],
@@ -599,9 +599,13 @@ app.post('/api/paystack/recipient', async (req, res) => {
     const user = await db.getUserById(userId);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // Confirm the account belongs to a real name before creating the recipient
-    const resolved = await paystack(`/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`);
-    const accountName = resolved.data.account_name || 'Customer';
+    // Try to resolve the account name; in test mode Paystack limits real
+    // bank resolution to 3/day — fall back gracefully so withdrawals still work.
+    let accountName = 'Customer';
+    try {
+      const resolved = await paystack(`/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`);
+      accountName = resolved.data.account_name || accountName;
+    } catch (_) { /* resolution unavailable — proceed with default name */ }
 
     const created = await paystack('/transferrecipient', {
       method: 'POST',
@@ -636,7 +640,7 @@ app.post('/api/paystack/withdraw', async (req, res) => {
   const { userId, amount } = req.body;
   const num = Number(amount);
   if (!userId || !Number.isInteger(num) || num < 1 || num > 50) {
-    return res.status(400).json({ error: 'Withdraw amount must be 1–50 GHS' });
+    return res.status(400).json({ error: 'Withdraw amount must be 1–50 NGN' });
   }
   try {
     const user = await db.getUserById(userId);
