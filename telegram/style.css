@@ -1081,3 +1081,72 @@ h2 {
 .wz-cell.hit { background: #4a2626; border-color: #e74c3c; }
 .wz-cell.sunk { background: #5c2b2b; border-color: #ff6b6b; }
 .wz-cell.miss { background: #1f2d42; border-color: #5a8dd6; }
+
+/* ===== Wallet screen — full webapp visual ===== */
+#screen-wallet { background: #fff; border-radius: 20px; padding: 30px; }
+#screen-wallet h2 { text-align: center; color: #333; font-size: 24px; font-weight: 700; }
+#screen-wallet .wallet-box {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  border: none;
+}
+#screen-wallet .wallet-box span { font-size: 18px; color: #fff; margin-bottom: 0; display: block; }
+#screen-wallet .wallet-box strong { font-size: 22px; color: #fff; }
+#screen-wallet .wallet-box small { display: none; }
+#screen-wallet .form-group { display: flex; flex-direction: column; gap: 5px; }
+#screen-wallet .form-group label { font-size: 14px; font-weight: 600; color: #333; }
+#screen-wallet .form-group input,
+#screen-wallet .form-group select {
+  padding: 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 16px;
+  outline: none;
+  background: #fff;
+  color: #333;
+  transition: border-color 0.2s;
+}
+#screen-wallet .form-group input:focus,
+#screen-wallet .form-group select:focus { border-color: #667eea; }
+#screen-wallet .form-group small { color: #999; font-size: 12px; }
+#screen-wallet .btn-primary {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.25);
+}
+#screen-wallet .btn-primary:hover { box-shadow: 0 8px 24px rgba(102, 126, 234, 0.4); }
+#screen-wallet .btn-primary:active { background: linear-gradient(135deg, #5568d3, #6a4099); }
+#screen-wallet .btn-back {
+  background: none;
+  border: none;
+  color: #999;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 10px;
+  text-align: center;
+}
+#screen-wallet .btn-back:hover { color: #667eea; }
+#screen-wallet #bank-status { color: #1a7f37; }
+#screen-wallet .transactions {
+  margin-top: 15px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+#screen-wallet .tx-item {
+  background: #f8f9fa;
+  color: #333;
+  padding: 10px;
+  border-radius: 8px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+#screen-wallet .tx-type { color: #666; }
+#screen-wallet .tx-amount { font-weight: 600; }
+#screen-wallet .tx-amount.positive { color: #28a745; }
+#screen-wallet .tx-amount.negative { color: #dc3545; }

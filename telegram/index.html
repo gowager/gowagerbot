@@ -469,42 +469,38 @@
       <button class="btn-primary" onclick="showScreen('screen-welcome')">Back to Home</button>
     </div>
 
-    <!-- Wallet -->
+    <!-- Wallet Screen -->
     <div id="screen-wallet" class="screen">
-      <div class="header">
-        <button class="back-btn" onclick="showScreen('screen-welcome')">←</button>
-        <h2>My Wallet</h2>
-      </div>
+      <h2>My Wallet</h2>
       <div class="wallet-box">
-        <span>Balance</span>
-        <strong id="wallet-balance-full">0.00</strong>
-        <small>NGN</small>
+        <span>Balance: <strong id="wallet-balance-full">0.00</strong> NGN</span>
       </div>
-      <div class="field">
+      <div class="form-group">
         <label>Email (required for payments)</label>
         <input type="email" id="wallet-email" placeholder="you@example.com">
       </div>
-      <div class="field">
+      <div class="form-group">
         <label>Deposit Amount (NGN)</label>
         <input type="number" id="deposit-wallet-amount" min="1" max="500" placeholder="e.g. 10">
       </div>
       <button class="btn-primary" id="deposit-btn" onclick="depositFunds()">Deposit</button>
-      <div class="field">
+      <div class="form-group">
         <label>Withdraw Amount (NGN)</label>
         <input type="number" id="withdraw-amount" min="1" max="50" placeholder="Enter amount">
       </div>
-      <div class="field">
+      <div class="form-group">
         <label>Bank</label>
         <select id="withdraw-bank"><option value="">Select bank…</option></select>
       </div>
-      <div class="field">
+      <div class="form-group">
         <label>Account Number</label>
         <input type="text" id="withdraw-account" maxlength="10" placeholder="e.g. 0123456789">
       </div>
-      <div id="bank-status" style="font-size:13px;color:#4ade80;min-height:16px;margin:4px 0 8px"></div>
+      <div id="bank-status" style="font-size:13px;color:#1a7f37;min-height:16px;margin-bottom:8px"></div>
       <button class="btn-primary" id="save-bank-btn" onclick="saveWithdrawBank()">Save Bank Account</button>
       <button class="btn-primary" id="withdraw-btn" onclick="withdraw()">Withdraw</button>
       <div id="transactions" class="transactions"></div>
+      <button class="btn-back" onclick="showScreen('screen-welcome')">← Back</button>
     </div>
   </div>
 
