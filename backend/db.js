@@ -33,6 +33,9 @@ async function createTables() {
       id TEXT PRIMARY KEY,
       telegram_id TEXT UNIQUE,
       username TEXT,
+      email TEXT,
+      recipient_code TEXT,
+      account_name TEXT,
       created_at TIMESTAMP DEFAULT NOW()
     );
     CREATE TABLE IF NOT EXISTS wallets (
@@ -67,34 +70,45 @@ async function createTables() {
       type TEXT,
       amount NUMERIC(12,2),
       status TEXT DEFAULT 'pending',
+      paystack_reference TEXT,
+      transfer_code TEXT,
+      recipient_code TEXT,
       created_at TIMESTAMP DEFAULT NOW()
     );
    `);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS tg_username TEXT`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS email TEXT`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS recipient_code TEXT`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS account_name TEXT`);
+  await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS paystack_reference TEXT`);
+  await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS transfer_code TEXT`);
+  await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS recipient_code TEXT`);
   await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS creator_role TEXT`);
 }
 
 // ---- User helpers ----
-async function getOrCreateUser(telegramId, username, tgUsername) {
+async function getOrCreateUser(telegramId, username, tgUsername, email) {
   if (useMemory) {
     const existing = [...memoryStore.users.values()].find(u => u.telegram_id === telegramId);
     if (existing) {
       if (tgUsername) existing.tg_username = tgUsername;
       if (username) existing.username = username;
+      if (email) existing.email = email;
       return existing;
     }
-    const user = { id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, telegram_id: telegramId, username: username || 'player', tg_username: tgUsername || null };
+    const user = { id: `u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, telegram_id: telegramId, username: username || 'player', tg_username: tgUsername || null, email: email || null, recipient_code: null, account_name: null };
     memoryStore.users.set(user.id, user);
     memoryStore.wallets.set(user.id, { user_id: user.id, balance: 0 });
     return user;
   }
   const res = await pool.query(
-    `INSERT INTO users (id, telegram_id, username, tg_username) VALUES ($1, $2, $3, $4)
+    `INSERT INTO users (id, telegram_id, username, tg_username, email) VALUES ($1, $2, $3, $4, $5)
      ON CONFLICT (telegram_id) DO UPDATE SET
        username = EXCLUDED.username,
-       tg_username = COALESCE(EXCLUDED.tg_username, users.tg_username)
+       tg_username = COALESCE(EXCLUDED.tg_username, users.tg_username),
+       email = COALESCE(EXCLUDED.email, users.email)
      RETURNING *`,
-    [`u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, telegramId, username, tgUsername || null]
+    [`u_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, telegramId, username, tgUsername || null, email || null]
   );
   const user = res.rows[0];
   await pool.query(
@@ -102,6 +116,21 @@ async function getOrCreateUser(telegramId, username, tgUsername) {
     [user.id]
   );
   return user;
+}
+
+async function updateUser(id, updates) {
+  if (useMemory) {
+    const user = memoryStore.users.get(id);
+    if (!user) return null;
+    Object.assign(user, updates);
+    return user;
+  }
+  const keys = Object.keys(updates);
+  const values = Object.values(updates);
+  if (!keys.length) return null;
+  const setClause = keys.map((k, i) => `${k} = $${i + 2}`).join(', ');
+  const res = await pool.query(`UPDATE users SET ${setClause} WHERE id = $1 RETURNING *`, [id, ...values]);
+  return res.rows[0] || null;
 }
 
 async function getUserByTelegramId(telegramId) {
@@ -263,10 +292,45 @@ async function createTransaction(tx) {
     return t;
   }
   const res = await pool.query(
-    `INSERT INTO transactions (id, user_id, game_id, type, amount, status) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-    [tx.id || `t_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`, tx.user_id, tx.game_id, tx.type, tx.amount, tx.status || 'pending']
+    `INSERT INTO transactions (id, user_id, game_id, type, amount, status, paystack_reference, transfer_code, recipient_code)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+    [
+      tx.id || `t_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      tx.user_id,
+      tx.game_id || null,
+      tx.type,
+      tx.amount,
+      tx.status || 'pending',
+      tx.paystack_reference || null,
+      tx.transfer_code || null,
+      tx.recipient_code || null,
+    ]
   );
   return res.rows[0];
+}
+
+async function getTransactionByReference(reference) {
+  if (!reference) return null;
+  if (useMemory) {
+    return [...memoryStore.transactions.values()].find(t => t.paystack_reference === reference) || null;
+  }
+  const res = await pool.query('SELECT * FROM transactions WHERE paystack_reference = $1 LIMIT 1', [reference]);
+  return res.rows[0] || null;
+}
+
+async function updateTransaction(id, updates) {
+  if (useMemory) {
+    const tx = memoryStore.transactions.get(id);
+    if (!tx) return null;
+    Object.assign(tx, updates);
+    return tx;
+  }
+  const keys = Object.keys(updates);
+  const values = Object.values(updates);
+  if (!keys.length) return null;
+  const setClause = keys.map((k, i) => `${k} = $${i + 2}`).join(', ');
+  const res = await pool.query(`UPDATE transactions SET ${setClause} WHERE id = $1 RETURNING *`, [id, ...values]);
+  return res.rows[0] || null;
 }
 
 async function getTransactionsByUser(userId) {
@@ -283,6 +347,7 @@ module.exports = {
   getUserByTelegramId,
   getUserByUsername,
   getUserById,
+  updateUser,
   getWallet,
   addFunds,
   deductFunds,
@@ -293,5 +358,7 @@ module.exports = {
   deleteGame,
   updateGame,
   createTransaction,
+  getTransactionByReference,
+  updateTransaction,
   getTransactionsByUser,
 };

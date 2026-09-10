@@ -25,7 +25,7 @@
       <div class="wallet-chip" onclick="showScreen('screen-wallet')">
         <span>💰</span>
         <span id="wallet-balance">0.00</span>
-        <span>GHS</span>
+        <span>NGN</span>
       </div>
       <div id="pending-games" class="actions"></div>
     </div>
@@ -177,15 +177,15 @@
           <input type="text" id="wz-opponent-id" placeholder="e.g. 123456789 or @axe773">
         </div>
         <div class="field" id="wz-stake-group">
-          <label>Stake per Match (1-50 GHS)</label>
+          <label>Stake per Match (1-50 NGN)</label>
           <input type="number" id="wz-stake" value="2" min="1" max="50">
         </div>
-        <div class="lobby-row" id="wz-pot-display"><span>Total Pot</span><strong><span id="wz-pot">4.00</span> GHS</strong></div>
-        <div class="lobby-row" id="wz-share-row"><span>Your Stake</span><strong><span id="wz-share">2.00</span> GHS</strong></div>
+        <div class="lobby-row" id="wz-pot-display"><span>Total Pot</span><strong><span id="wz-pot">4.00</span> NGN</strong></div>
+        <div class="lobby-row" id="wz-share-row"><span>Your Stake</span><strong><span id="wz-share">2.00</span> NGN</strong></div>
         <div class="pot-box free-badge" id="wz-free-badge" style="display:none;">
           <span>Total Pot</span>
           <strong>FREE</strong>
-          <small>Your Deposit: 0.00 GHS</small>
+          <small>Your Deposit: 0.00 NGN</small>
           <small>30s to place 4 rockets — no money involved!</small>
         </div>
         <button class="btn-primary" onclick="createWzGame()">Create Game</button>
@@ -236,7 +236,7 @@
           </div>
         </div>
         <div class="field" id="rps-amount-group">
-          <label>Amount per Round (GHS)</label>
+          <label>Amount per Round (NGN)</label>
           <div class="stepper">
             <button onclick="stepValue('amount', -1)">−</button>
             <input type="number" id="amount" value="1" min="1" max="50" readonly>
@@ -273,14 +273,14 @@
         </div>
         <div class="pot-box" id="rps-pot-display">
           <span>Total Pot</span>
-          <strong id="total-pot">10.00 GHS</strong>
-          <small>Your Stake: <span id="your-share">5.00</span> GHS (deducted from wallet)</small>
+          <strong id="total-pot">10.00 NGN</strong>
+          <small>Your Stake: <span id="your-share">5.00</span> NGN (deducted from wallet)</small>
           <small>Winner gets pot minus 5% fee — credited to wallet instantly</small>
         </div>
         <div class="pot-box free-badge" id="rps-free-badge" style="display:none;">
           <span>Total Pot</span>
           <strong>FREE</strong>
-          <small>Your Deposit: 0.00 GHS</small>
+          <small>Your Deposit: 0.00 NGN</small>
           <small>No money involved — just play for fun!</small>
         </div>
         <button class="btn-primary" onclick="createGame()">Create Game</button>
@@ -311,15 +311,15 @@
           <input type="number" id="rb-cards" value="5" min="1" max="52">
         </div>
         <div class="field" id="rb-bet-group">
-          <label>Bet per Card (1-20 GHS)</label>
+          <label>Bet per Card (1-20 NGN)</label>
           <input type="number" id="rb-bet" value="5" min="1" max="20">
         </div>
-        <div class="lobby-row" id="rb-pot-display"><span>Total Pot</span><strong><span id="rb-pot">50.00</span> GHS</strong></div>
-        <div class="lobby-row" id="rb-share-row"><span>Your Stake</span><strong><span id="rb-share">25.00</span> GHS</strong></div>
+        <div class="lobby-row" id="rb-pot-display"><span>Total Pot</span><strong><span id="rb-pot">50.00</span> NGN</strong></div>
+        <div class="lobby-row" id="rb-share-row"><span>Your Stake</span><strong><span id="rb-share">25.00</span> NGN</strong></div>
         <div class="pot-box free-badge" id="rb-free-badge" style="display:none;">
           <span>Total Pot</span>
           <strong>FREE</strong>
-          <small>Your Deposit: 0.00 GHS</small>
+          <small>Your Deposit: 0.00 NGN</small>
           <small>No money involved — just play for fun!</small>
         </div>
         <button class="btn-primary" onclick="createRbGame()">Create Game</button>
@@ -408,7 +408,7 @@
       </div>
       <div class="deposit-box">
         <p>You need to deposit</p>
-        <strong id="deposit-amount">0.00 GHS</strong>
+        <strong id="deposit-amount">0.00 NGN</strong>
         <p class="hint">Held in escrow until game completes</p>
       </div>
       <button class="btn-primary" onclick="processDeposit()">Deposit & Confirm</button>
@@ -478,18 +478,32 @@
       <div class="wallet-box">
         <span>Balance</span>
         <strong id="wallet-balance-full">0.00</strong>
-        <small>GHS</small>
+        <small>NGN</small>
       </div>
       <div class="field">
-        <label>Deposit Amount (GHS)</label>
+        <label>Email (required for payments)</label>
+        <input type="email" id="wallet-email" placeholder="you@example.com">
+      </div>
+      <div class="field">
+        <label>Deposit Amount (NGN)</label>
         <input type="number" id="deposit-wallet-amount" min="1" max="500" placeholder="e.g. 10">
       </div>
-      <button class="btn-primary" onclick="depositFunds()">Deposit</button>
+      <button class="btn-primary" id="deposit-btn" onclick="depositFunds()">Deposit</button>
       <div class="field">
-        <label>Withdraw Amount (GHS)</label>
+        <label>Withdraw Amount (NGN)</label>
         <input type="number" id="withdraw-amount" min="1" max="50" placeholder="Enter amount">
       </div>
-      <button class="btn-primary" onclick="withdraw()">Withdraw</button>
+      <div class="field">
+        <label>Bank</label>
+        <select id="withdraw-bank"><option value="">Select bank…</option></select>
+      </div>
+      <div class="field">
+        <label>Account Number</label>
+        <input type="text" id="withdraw-account" maxlength="10" placeholder="e.g. 0123456789">
+      </div>
+      <div id="bank-status" style="font-size:13px;color:#4ade80;min-height:16px;margin:4px 0 8px"></div>
+      <button class="btn-primary" id="save-bank-btn" onclick="saveWithdrawBank()">Save Bank Account</button>
+      <button class="btn-primary" id="withdraw-btn" onclick="withdraw()">Withdraw</button>
       <div id="transactions" class="transactions"></div>
     </div>
   </div>

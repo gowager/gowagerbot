@@ -14,12 +14,47 @@ const io = new Server(server, {
 });
 
 app.use(cors());
-app.use(express.json());
+// Capture the raw request body for Paystack webhook signature verification
+app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
 
 // Serve the web app from the backend so http://localhost:3001/ works
 app.use(express.static(path.join(__dirname, '..', 'webapp')));
 
 const PORT = process.env.PORT || 3001;
+
+// ---------- PAYSTACK CONFIG ----------
+// Keys come from environment variables (backend/.env). Paystack in test mode
+// accepts the test keys; switch to live keys when ready to accept real money.
+const PAYSTACK_BASE = 'https://api.paystack.co';
+const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY || '';
+const PAYSTACK_PUBLIC_KEY = process.env.PAYSTACK_PUBLIC_KEY || '';
+const PAYSTACK_CURRENCY = process.env.PAYSTACK_CURRENCY || 'NGN';
+
+function hasPaystack() {
+  return !!PAYSTACK_SECRET_KEY;
+}
+
+// Thin wrapper over the Paystack REST API (Node 18+ global fetch)
+async function paystack(path, options = {}) {
+  const res = await fetch(`${PAYSTACK_BASE}${path}`, {
+    headers: {
+      Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+    method: options.method || 'GET',
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error((data.message) || ('Paystack request failed'));
+  return data;
+}
+
+// Generate a unique, Paystack-friendly reference for deposits/withdrawals
+function paystackRef(prefix, userId) {
+  const safeId = String(userId || '').replace(/[^a-z0-9_-]/gi, '').slice(-12);
+  return `${prefix}_${safeId || 'u'}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
 
 // In-memory game state for real-time play
 const activeGames = new Map(); // gameId -> { game, creatorSocket, opponentSocket, roundChoices, roundTimer, roundDeadline, playedRounds }
@@ -90,14 +125,31 @@ app.get('/api/health', (req, res) => {
 // Register / login user
 app.post('/api/users', async (req, res) => {
   if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
-  const { telegramId, username, tgUsername } = req.body;
+  const { telegramId, username, tgUsername, email } = req.body;
   if (!telegramId || typeof telegramId !== 'string' || telegramId.length > 100) {
     return res.status(400).json({ error: 'Invalid telegram ID' });
   }
   try {
-    const user = await db.getOrCreateUser(telegramId, username, tgUsername);
+    const user = await db.getOrCreateUser(telegramId, username, tgUsername, email);
     const wallet = await db.getWallet(user.id);
     res.json({ user, wallet });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update a user's profile (email is required by Paystack)
+app.post('/api/users/:id', async (req, res) => {
+  if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
+  const { email } = req.body;
+  try {
+    const user = await db.getUserById(req.params.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (email !== undefined && typeof email !== 'string') {
+      return res.status(400).json({ error: 'Invalid email' });
+    }
+    const updated = await db.updateUser(user.id, { email: email || null });
+    res.json({ user: updated });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -382,6 +434,297 @@ app.post('/api/deposit', async (req, res) => {
       status: 'completed',
     });
     res.json({ success: true, wallet: await db.getWallet(userId) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------- PAYSTACK (DEPOSITS + WITHDRAWALS) ----------
+
+// Create a Paystack checkout session for a wallet top-up.
+// Returns the hosted authorization_url the user is redirected to.
+app.post('/api/paystack/initialize', async (req, res) => {
+  if (!checkRateLimit(req.ip, 5)) return res.status(429).json({ error: 'Too many requests' });
+  if (!hasPaystack()) return res.status(503).json({ error: 'Paystack is not configured yet' });
+  const { userId, amount, email, callbackUrl } = req.body;
+  const num = Number(amount);
+  if (!userId || !Number.isInteger(num) || num < 1 || num > 500) {
+    return res.status(400).json({ error: 'Deposit amount must be 1–500 GHS' });
+  }
+  try {
+    const user = await db.getUserById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Save an email if supplied, and fall back to the stored one
+    let customerEmail = (email || '').trim();
+    if (!customerEmail && user.email) customerEmail = user.email.trim();
+    if (customerEmail && customerEmail !== user.email) {
+      await db.updateUser(user.id, { email: customerEmail });
+      user.email = customerEmail;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(customerEmail)) {
+      return res.status(400).json({ error: 'A valid email is required to deposit via Paystack' });
+    }
+
+    const reference = paystackRef('gwg_dep', userId);
+    const base = callbackUrl || `${req.protocol}://${req.get('host')}`;
+
+    const data = await paystack('/transaction/initialize', {
+      method: 'POST',
+      body: {
+        email: customerEmail,
+        amount: num * 100, // GHS -> pesewas / NGN -> kobo
+        currency: PAYSTACK_CURRENCY,
+        reference,
+        channels: ['card', 'mobile_money', 'bank'],
+        callback_url: `${base}?gwg_deposit=${reference}`,
+        metadata: { userId, amount: num },
+      },
+    });
+
+    // Record a pending deposit we can match on callback/webhook
+    await db.createTransaction({
+      user_id: userId,
+      type: 'deposit',
+      amount: num,
+      status: 'pending',
+      paystack_reference: reference,
+    });
+
+    res.json({ authorization_url: data.data.authorization_url, reference, publicKey: PAYSTACK_PUBLIC_KEY });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Confirm a deposit after the user returns from Paystack checkout.
+// Credits the wallet exactly once per reference.
+app.get('/api/paystack/verify/:reference', async (req, res) => {
+  if (!checkRateLimit(req.ip, 10)) return res.status(429).json({ error: 'Too many requests' });
+  if (!hasPaystack()) return res.status(503).json({ error: 'Paystack is not configured yet' });
+  const reference = String(req.params.reference || '').trim();
+  if (!reference) return res.status(400).json({ error: 'Missing reference' });
+  try {
+    const data = await paystack(`/transaction/verify/${reference}`);
+
+    let tx = await db.getTransactionByReference(reference);
+    if (!tx) {
+      // Deposits always start as a pending transaction, but be defensive
+      const user = data.data && data.data.metadata && data.data.metadata.userId;
+      if (!user) return res.status(400).json({ error: 'Unknown deposit reference' });
+      tx = await db.createTransaction({
+        user_id: user,
+        type: 'deposit',
+        amount: Number(data.data.amount) / 100,
+        status: 'pending',
+        paystack_reference: reference,
+      });
+    }
+
+    if (data.data.status === 'success' && tx.status !== 'completed') {
+      const credited = Number(data.data.amount) / 100;
+      await db.addFunds(tx.user_id, credited);
+      await db.updateTransaction(tx.id, { status: 'completed' });
+      tx = await db.getTransactionByReference(reference);
+    }
+
+    res.json({ success: true, transaction: tx, wallet: await db.getWallet(tx.user_id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Paystack webhook. Paystack POSTs JSON with an `x-paystack-signature`
+// header = HMAC SHA-512 of the raw body, keyed with the secret key.
+// We only trust bodies whose signature matches.
+app.post('/api/paystack/webhook', async (req, res) => {
+  const signature = req.headers['x-paystack-signature'] || '';
+  const raw = req.rawBody || Buffer.from('');
+  const expected = crypto.createHmac('sha512', PAYSTACK_SECRET_KEY).update(raw).digest('hex');
+  if (!signature || signature !== expected) {
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+  try {
+    const event = req.body;
+    const evtData = event.data || {};
+    const reference = evtData.reference || '';
+
+    if (event.event === 'charge.success') {
+      const tx = await db.getTransactionByReference(reference);
+      if (tx && tx.type === 'deposit' && tx.status !== 'completed') {
+        const credited = Number(evtData.amount) / 100;
+        await db.addFunds(tx.user_id, credited);
+        await db.updateTransaction(tx.id, { status: 'completed' });
+      }
+    } else if (event.event === 'transfer.success' || event.event === 'transfer.failed') {
+      const tx = await db.getTransactionByReference(reference);
+      if (tx && tx.type === 'withdrawal') {
+        if (event.event === 'transfer.success' && tx.status !== 'completed') {
+          await db.updateTransaction(tx.id, { status: 'completed' });
+        } else if (event.event === 'transfer.failed' && tx.status === 'pending') {
+          await db.addFunds(tx.user_id, Number(tx.amount));
+          await db.updateTransaction(tx.id, { status: 'failed' });
+        }
+      }
+    }
+
+    res.json({ status: 'ok' });
+  } catch (err) {
+    // Always ack so Paystack stops retrying; log for debugging
+    res.json({ status: 'ok' });
+  }
+});
+
+// List Ghana banks for the withdrawal form
+app.get('/api/paystack/banks', async (req, res) => {
+  if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
+  if (!hasPaystack()) return res.status(503).json({ error: 'Paystack is not configured yet' });
+  try {
+    const data = await paystack(`/bank?currency=${PAYSTACK_CURRENCY}&perPage=100`);
+    res.json(data.data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Resolve an account number and save a Paystack transfer recipient for payouts
+app.post('/api/paystack/recipient', async (req, res) => {
+  if (!checkRateLimit(req.ip, 5)) return res.status(429).json({ error: 'Too many requests' });
+  if (!hasPaystack()) return res.status(503).json({ error: 'Paystack is not configured yet' });
+  const { userId, bankCode, accountNumber } = req.body;
+  if (!userId || !bankCode || !/^\d{10,12}$/.test(String(accountNumber || ''))) {
+    return res.status(400).json({ error: 'Enter a valid 10-digit account number' });
+  }
+  try {
+    const user = await db.getUserById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Confirm the account belongs to a real name before creating the recipient
+    const resolved = await paystack(`/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`);
+    const accountName = resolved.data.account_name || 'Customer';
+
+    const created = await paystack('/transferrecipient', {
+      method: 'POST',
+      body: {
+        type: 'nuban',
+        name: accountName,
+        account_number: String(accountNumber),
+        bank_code: String(bankCode),
+        currency: PAYSTACK_CURRENCY,
+      },
+    });
+
+    await db.updateUser(user.id, {
+      recipient_code: created.data.recipient_code,
+      account_name: accountName,
+    });
+
+    res.json({
+      success: true,
+      recipient_code: created.data.recipient_code,
+      account_name: accountName,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Initiate a real bank payout from the user's wallet balance
+app.post('/api/paystack/withdraw', async (req, res) => {
+  if (!checkRateLimit(req.ip, 5)) return res.status(429).json({ error: 'Too many requests' });
+  if (!hasPaystack()) return res.status(503).json({ error: 'Paystack is not configured yet' });
+  const { userId, amount } = req.body;
+  const num = Number(amount);
+  if (!userId || !Number.isInteger(num) || num < 1 || num > 50) {
+    return res.status(400).json({ error: 'Withdraw amount must be 1–50 GHS' });
+  }
+  try {
+    const user = await db.getUserById(userId);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user.recipient_code) {
+      return res.status(400).json({ error: 'Add your bank account first' });
+    }
+
+    const wallet = await db.getWallet(userId);
+    if (Number(wallet.balance) < num) return res.status(400).json({ error: 'Insufficient balance' });
+
+    const reference = paystackRef('gwg_wd', userId);
+
+    // Hold the funds then push the payout to Paystack
+    await db.deductFunds(userId, num);
+    const pendingTx = await db.createTransaction({
+      user_id: userId,
+      type: 'withdrawal',
+      amount: num,
+      status: 'pending',
+      paystack_reference: reference,
+    });
+
+    let transfer;
+    try {
+      transfer = await paystack('/transfer', {
+        method: 'POST',
+        body: {
+          source: 'balance',
+          amount: num * 100,
+          currency: PAYSTACK_CURRENCY,
+          recipient: user.recipient_code,
+          reason: 'GoWager wallet withdrawal',
+          reference,
+        },
+      });
+    } catch (err) {
+      // Transfer rejected (e.g. OTP required in live mode) — refund the hold
+      await db.addFunds(userId, num);
+      await db.updateTransaction(pendingTx.id, { status: 'failed' });
+      await db.createTransaction({
+        user_id: userId,
+        type: 'withdrawal_refund',
+        amount: num,
+        status: 'completed',
+        paystack_reference: reference,
+      });
+      return res.status(400).json({ error: err.message.includes('OTP') ? 'Transfer OTP is enabled. Disable it in Paystack to allow automatic payouts.' : err.message });
+    }
+
+    const transferCode = transfer.data.transfer_code || null;
+    await db.updateTransaction(pendingTx.id, {
+      status: transfer.data.status === 'success' ? 'completed' : 'pending',
+      transfer_code: transferCode,
+    });
+
+    res.json({
+      success: true,
+      reference,
+      transfer_code: transferCode,
+      status: transfer.data.status,
+      otpRequired: transfer.data.status === 'otp',
+      wallet: await db.getWallet(userId),
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Poll transfer status (idempotent confirmation for the UI)
+app.get('/api/paystack/withdraw/:reference/status', async (req, res) => {
+  if (!checkRateLimit(req.ip, 10)) return res.status(429).json({ error: 'Too many requests' });
+  if (!hasPaystack()) return res.status(503).json({ error: 'Paystack is not configured yet' });
+  const reference = String(req.params.reference || '').trim();
+  if (!reference) return res.status(400).json({ error: 'Missing reference' });
+  try {
+    let tx = await db.getTransactionByReference(reference);
+    if (!tx) return res.status(404).json({ error: 'Transaction not found' });
+
+    const data = await paystack(`/transfer/verify/${reference}`);
+    const status = data.data.status;
+
+    if (status === 'success' && tx.status !== 'completed') {
+      await db.updateTransaction(tx.id, { status: 'completed' });
+      tx = await db.getTransactionByReference(reference);
+    }
+
+    res.json({ transaction: tx, status });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

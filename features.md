@@ -5,12 +5,20 @@ GoWager — a Telegram Mini App and Web App for friendly wagers between two play
 ## Platform
 - **Two frontends, one backend**: light-theme Web App (`webapp/`) and dark-theme Telegram Mini App (`telegram/`), both served by the same Express server.
 - **Telegram authentication**: Mini App users register with their real Telegram ID + @username. Web App users get auto-generated IDs.
-- **Wallet system**: GHS balances, deposits ledger, transaction history, demo credit endpoint for testing.
+- **Wallet system**: NGN balances, deposits ledger, transaction history, demo credit endpoint for testing.
 - **Opponent lookup**: invite by numeric Telegram ID, `@username`, plain username, or webapp-style ID.
+
+## Payments (Paystack)
+- **Deposits**: `POST /api/paystack/initialize` calls Paystack `POST /transaction/initialize` (amount in the smallest unit, `amount × 100`), returns `authorization_url` → user pays (card / mobile money / bank transfer) on Paystack's hosted checkout → frontend calls `GET /api/paystack/verify/:reference` or relies on the webhook to credit the wallet via the existing `addFunds` path. Credits are idempotent per reference.
+- **Withdrawals**: user supplies bank + account number → backend resolves the account name and creates a transfer recipient (`POST /transferrecipient`) → wallet is debited and a real payout initiated (`POST /transfer`, source `balance`). Transfer OTP expected to be disabled in live mode for automatic payouts.
+- **Webhook** `POST /api/paystack/webhook`: Paystack posts `charge.success`; backend verifies the HMAC SHA-512 `x-paystack-signature` header, then credits the wallet guarded by the transaction reference.
+- **Currency**: configurable via `PAYSTACK_CURRENCY` (default `NGN`, i.e. naira/kobo; `GHS` = cedis/pesewas). Every Paystack call requires the customer's `email`.
+- **Env variables**: `PAYSTACK_SECRET_KEY` (backend only, never client), `PAYSTACK_PUBLIC_KEY` (frontend), `PAYSTACK_CURRENCY`. Test keys for dev, live keys for production.
+- **Environments**: test mode is usable immediately; live mode requires Paystack merchant verification (KYC). Test cards (e.g. `4084 0840 8408 4081`) are available for sandbox testing.
 
 ## Lobby & Game Flow
 - **Create game**: pick opponent, settings, see live Total Pot + Your Deposit before committing.
-- **Join game**: enter a 6-character room code → rules review screen (game-specific) → "I Agree & Deposit" → deposit screen → lobby.
+- **Join game**: enter a 6-character room code → rules review screen (game-specific) → "I Agree & Play" → lobby. Stake is deducted from the wallet on join (paid games).
 - **Pending games list**: welcome screen shows games waiting for you; enter or delete (delete fully refunds the creator).
 - **Dual-ready start**: paid games begin only when both players press Start AND both sockets are connected.
 - **Rejoin safety**: refreshing mid-game re-syncs full state, including private hands.

@@ -181,7 +181,7 @@ async function createWzGame() {
   const opponentTelegramId = document.getElementById('wz-opponent-id').value.trim();
   const stake = parseInt(document.getElementById('wz-stake').value);
   if (!opponentTelegramId) return showToast('Enter your opponent\'s Telegram ID or @username', 'error');
-  if (!isFreeMode && (stake < 1 || stake > 50)) return showToast('Stake must be between 1 and 50 GHS per match', 'error');
+  if (!isFreeMode && (stake < 1 || stake > 50)) return showToast('Stake must be between 1 and 50 NGN per match', 'error');
   try {
     const data = await api('/api/games', {
       method: 'POST',
@@ -389,7 +389,7 @@ async function createRbGame() {
   if (!opponentTelegramId) return showToast('Enter your opponent\'s Telegram ID or @username', 'error');
   if (!rbSelectedRole) return showToast('Choose your role: Dealer or Player', 'error');
   if (cards < 1 || cards > 52) return showToast('Cards must be between 1 and 52', 'error');
-  if (!isFreeMode && (bet < 1 || bet > 20)) return showToast('Bet must be between 1 and 20 GHS per card', 'error');
+  if (!isFreeMode && (bet < 1 || bet > 20)) return showToast('Bet must be between 1 and 20 NGN per card', 'error');
 
   try {
     const data = await api('/api/games', {
@@ -496,7 +496,7 @@ async function createGame() {
     return;
   }
   if (!isFreeMode && (amountPerRound < 1 || amountPerRound > 50)) {
-    showToast('Amount must be between 1 and 50 GHS', 'error');
+    showToast('Amount must be between 1 and 50 NGN', 'error');
     return;
   }
 
@@ -560,9 +560,9 @@ function renderRulesContent(game) {
       <div class="rule-row"><span class="rule-label">Game</span><span class="rule-value">Red or Black 🃏</span></div>
       <div class="rule-row"><span class="rule-label">Mode</span><span class="rule-value">${isFree ? '🎉 FREE' : '💰 Paid'}</span></div>
       <div class="rule-row"><span class="rule-label">Cards</span><span class="rule-value">${game.rounds}</span></div>
-      <div class="rule-row"><span class="rule-label">Bet per Card</span><span class="rule-value">${isFree ? 'FREE' : game.amount_per_round + ' GHS'}</span></div>
-      <div class="rule-row"><span class="rule-label">Total Pot</span><span class="rule-value">${isFree ? 'FREE' : (stake * 2).toFixed(2) + ' GHS'}</span></div>
-      <div class="rule-row"><span class="rule-label">Your Deposit (Stake)</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) + ' GHS'}</span></div>
+      <div class="rule-row"><span class="rule-label">Bet per Card</span><span class="rule-value">${isFree ? 'FREE' : game.amount_per_round + ' NGN'}</span></div>
+      <div class="rule-row"><span class="rule-label">Total Pot</span><span class="rule-value">${isFree ? 'FREE' : (stake * 2).toFixed(2) + ' NGN'}</span></div>
+      <div class="rule-row"><span class="rule-label">Your Deposit (Stake)</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) + ' NGN'}</span></div>
       <div class="rule-row"><span class="rule-label">Creator's Role</span><span class="rule-value">${game.creator_role === 'dealer' ? '🎩 Dealer' : '🎯 Player'}</span></div>
       <div class="rule-row"><span class="rule-label">How It Works</span><span class="rule-value">Dealer picks a hidden card - player guesses Red or Black</span></div>
     `;
@@ -571,9 +571,9 @@ function renderRulesContent(game) {
       <div class="rule-row"><span class="rule-label">Game</span><span class="rule-value">Rock Paper Scissors</span></div>
       <div class="rule-row"><span class="rule-label">Mode</span><span class="rule-value">${isFree ? '🎉 FREE' : '💰 Paid'}</span></div>
       <div class="rule-row"><span class="rule-label">Rounds</span><span class="rule-value">${game.rounds}</span></div>
-      <div class="rule-row"><span class="rule-label">Amount per Round</span><span class="rule-value">${isFree ? 'FREE' : game.amount_per_round + ' GHS'}</span></div>
-      <div class="rule-row"><span class="rule-label">Total Pot</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) * 2 + ' GHS'}</span></div>
-      <div class="rule-row"><span class="rule-label">Your Deposit (Stake)</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) + ' GHS'}</span></div>
+      <div class="rule-row"><span class="rule-label">Amount per Round</span><span class="rule-value">${isFree ? 'FREE' : game.amount_per_round + ' NGN'}</span></div>
+      <div class="rule-row"><span class="rule-label">Total Pot</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) * 2 + ' NGN'}</span></div>
+      <div class="rule-row"><span class="rule-label">Your Deposit (Stake)</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) + ' NGN'}</span></div>
       <div class="rule-row"><span class="rule-label">Seconds per Round</span><span class="rule-value">${game.round_seconds}s</span></div>
       <div class="rule-row"><span class="rule-label">Payout Style</span><span class="rule-value">${game.payout_style === 'winner_takes_all' ? 'Winner Takes All' : 'Winner Per Game'}</span></div>
       <div class="rule-row"><span class="rule-label">Resign Rule</span><span class="rule-value">${game.resign_rule === 'full_pot' ? 'Pay Full Pot' : 'Pay Per Game'}</span></div>
@@ -982,21 +982,21 @@ socket.on('game_over', (data) => {
     content.innerHTML = `
       <div class="winner">It's a Tie!</div>
       <p>Both players get a refund.</p>
-      <div class="amount">${Number(data.winnerAmount).toFixed(2)} GHS each</div>
-      <div class="fee">GoWager fee: ${Number(data.fee).toFixed(2)} GHS</div>
+      <div class="amount">${Number(data.winnerAmount).toFixed(2)} NGN each</div>
+      <div class="fee">GoWager fee: ${Number(data.fee).toFixed(2)} NGN</div>
     `;
   } else if (isWinner) {
     content.innerHTML = `
       <div class="winner">You Won! 🏆</div>
-      <div class="amount">+${Number(data.winnerAmount).toFixed(2)} GHS</div>
-      <div class="fee">GoWager fee: ${Number(data.fee).toFixed(2)} GHS</div>
+      <div class="amount">+${Number(data.winnerAmount).toFixed(2)} NGN</div>
+      <div class="fee">GoWager fee: ${Number(data.fee).toFixed(2)} NGN</div>
       <p>${data.reason === 'resignation' ? 'Opponent resigned' : data.reason === 'auto_resign_timeout' ? 'Opponent timed out' : 'Game completed'}</p>
     `;
   } else {
     content.innerHTML = `
       <div class="winner">You Lost</div>
       <p>Better luck next time!</p>
-      <div class="fee">GoWager fee: ${Number(data.fee).toFixed(2)} GHS</div>
+      <div class="fee">GoWager fee: ${Number(data.fee).toFixed(2)} NGN</div>
     `;
   }
 
@@ -1021,45 +1021,140 @@ async function openWallet() {
     const wallet = await api(`/api/wallet/${currentUser.id}`);
     updateWallet(wallet.balance);
     loadTransactions();
+    loadBanks();
+    const emailInput = document.getElementById('wallet-email');
+    const savedEmail = localStorage.getItem('gowager_email') || currentUser.email || '';
+    if (savedEmail) emailInput.value = savedEmail;
+    if (currentUser.account_name) {
+      document.getElementById('bank-status').textContent = `Saved account: ${currentUser.account_name}`;
+    }
+  }
+}
+
+async function loadBanks() {
+  try {
+    const banks = await api('/api/paystack/banks');
+    const select = document.getElementById('withdraw-bank');
+    select.innerHTML = '<option value="">Select bank…</option>' +
+      banks.map(b => `<option value="${b.code}">${b.name}</option>`).join('');
+  } catch (err) {
+    // Paystack not configured yet — withdraw needs it; deposit UI still shows
   }
 }
 
 async function depositFunds() {
   const amount = parseInt(document.getElementById('deposit-wallet-amount').value);
   if (!amount || amount < 1 || amount > 500) {
-    showToast('Enter a valid amount (1–500 GHS)', 'error');
+    showToast('Enter a valid amount (1–500 NGN)', 'error');
     return;
   }
+  const emailInput = document.getElementById('wallet-email');
+  let email = (emailInput.value || '').trim();
+  if (!email && currentUser.email) email = currentUser.email;
+  if (!email) {
+    showToast('Enter your email to deposit', 'error');
+    emailInput.focus();
+    return;
+  }
+  const btn = document.getElementById('deposit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Opening Paystack…';
   try {
-    const data = await api('/api/deposit', {
+    if (email !== currentUser.email) {
+      const saved = await api(`/api/users/${currentUser.id}`, {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      });
+      currentUser.email = saved.user.email;
+    }
+    localStorage.setItem('gowager_email', email);
+    const data = await api('/api/paystack/initialize', {
       method: 'POST',
-      body: JSON.stringify({ userId: currentUser.id, amount }),
+      body: JSON.stringify({
+        userId: currentUser.id,
+        amount,
+        email,
+        callbackUrl: window.location.origin + window.location.pathname,
+      }),
     });
-    updateWallet(data.wallet.balance);
-    document.getElementById('deposit-wallet-amount').value = '';
-    showToast(`Deposited ${amount.toFixed(2)} GHS successfully!`, 'success');
-    loadTransactions();
+    window.location.href = data.authorization_url;
   } catch (err) {
     showToast(err.message, 'error');
+    btn.disabled = false;
+    btn.textContent = 'Deposit';
+  }
+}
+
+async function handleDepositCallback() {
+  const ref = new URLSearchParams(window.location.search).get('gwg_deposit');
+  if (!ref) return;
+  const btn = document.getElementById('deposit-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Confirming…'; }
+  try {
+    const data = await api(`/api/paystack/verify/${ref}`);
+    updateWallet(data.wallet.balance);
+    showToast('Deposit successful!', 'success');
+    loadTransactions();
+    window.history.replaceState({}, '', window.location.pathname);
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Deposit'; }
+  }
+}
+
+async function saveWithdrawBank() {
+  const bank = document.getElementById('withdraw-bank').value;
+  const account = document.getElementById('withdraw-account').value.trim();
+  if (!bank) return showToast('Select a bank', 'error');
+  if (!/^\d{10}$/.test(account)) return showToast('Enter a valid 10-digit account number', 'error');
+  const btn = document.getElementById('save-bank-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    const data = await api('/api/paystack/recipient', {
+      method: 'POST',
+      body: JSON.stringify({ userId: currentUser.id, bankCode: bank, accountNumber: account }),
+    });
+    currentUser.recipient_code = data.recipient_code;
+    currentUser.account_name = data.account_name;
+    document.getElementById('bank-status').textContent = `Saved account: ${data.account_name}`;
+    showToast('Bank account saved!', 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save Bank Account';
   }
 }
 
 async function withdraw() {
   const amount = parseInt(document.getElementById('withdraw-amount').value);
   if (!amount || amount < 1 || amount > 50) {
-    showToast('Enter a valid amount (1-50 GHS)', 'error');
+    showToast('Enter a valid amount (1-50 NGN)', 'error');
     return;
   }
+  if (!currentUser.recipient_code) {
+    showToast('Save your bank account first', 'error');
+    return;
+  }
+  const btn = document.getElementById('withdraw-btn');
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
   try {
-    const data = await api('/api/withdraw', {
+    const data = await api('/api/paystack/withdraw', {
       method: 'POST',
       body: JSON.stringify({ userId: currentUser.id, amount }),
     });
     updateWallet(data.wallet.balance);
-    showToast('Withdrawal request submitted!', 'success');
+    if (data.otpRequired) showToast('Transfer submitted — needs OTP approval in Paystack', 'info');
+    else showToast('Withdrawal sent to your bank!', 'success');
     loadTransactions();
   } catch (err) {
     showToast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Withdraw';
   }
 }
 
@@ -1074,17 +1169,20 @@ async function loadTransactions() {
       return;
     }
     txs.forEach(tx => {
-      const isPositive = ['game_win', 'game_refund'].includes(tx.type);
+      const isPositive = ['game_win', 'game_refund', 'withdrawal_refund', 'deposit'].includes(tx.type);
       const typeLabels = {
         game_deposit: 'Game Deposit',
         game_win: 'Game Win',
         game_refund: 'Game Refund',
+        deposit: 'Deposit',
         withdrawal: 'Withdrawal',
+        withdrawal_refund: 'Withdrawal Refund',
+        demo_credit: 'Demo Credit',
       };
       container.innerHTML += `
         <div class="tx-item">
           <span class="tx-type">${typeLabels[tx.type] || tx.type}</span>
-          <span class="tx-amount ${isPositive ? 'positive' : 'negative'}">${isPositive ? '+' : '-'}${Number(tx.amount).toFixed(2)} GHS</span>
+          <span class="tx-amount ${isPositive ? 'positive' : 'negative'}">${isPositive ? '+' : '-'}${Number(tx.amount).toFixed(2)} NGN</span>
         </div>
       `;
     });
@@ -1099,4 +1197,5 @@ document.addEventListener('DOMContentLoaded', async () => {
   await initUser();
   updateTotalPot();
   loadPendingGames();
+  handleDepositCallback();
 });

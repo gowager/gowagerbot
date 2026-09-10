@@ -18,7 +18,7 @@
       <button class="btn-secondary" onclick="showScreen('screen-howto')">How To Use App</button>
       <button class="btn-secondary" onclick="openWallet()">💰 Wallet</button>
       <div class="wallet-bar">
-        <span>💰 Balance: <strong id="wallet-balance">0.00</strong> GHS</span>
+        <span>💰 Balance: <strong id="wallet-balance">0.00</strong> NGN</span>
         <button class="btn-small" onclick="showScreen('screen-wallet')">Wallet</button>
       </div>
       <div id="pending-games"></div>
@@ -138,17 +138,17 @@
         <input type="text" id="wz-opponent-id" placeholder="e.g. 123456789 or @axe773">
       </div>
       <div class="form-group" id="wz-stake-group">
-        <label>Stake per Match (1-50 GHS)</label>
+        <label>Stake per Match (1-50 NGN)</label>
         <input type="number" id="wz-stake" min="1" max="50" value="2">
       </div>
       <div class="total-display" id="wz-pot-display">
-        <strong>Total Pot: <span id="wz-pot">4.00</span> GHS</strong>
-        <p class="pot-hint">Your Stake: <span id="wz-share">2.00</span> GHS (deducted from wallet)</p>
+        <strong>Total Pot: <span id="wz-pot">4.00</span> NGN</strong>
+        <p class="pot-hint">Your Stake: <span id="wz-share">2.00</span> NGN (deducted from wallet)</p>
         <p class="pot-hint">30s to place 4 rockets — then take turns hunting — winner takes pot minus 5% fee</p>
       </div>
       <div class="total-display free-badge" id="wz-free-badge" style="display:none;">
         <strong>Total Pot: FREE</strong>
-        <p class="pot-hint">Your Deposit: 0.00 GHS</p>
+        <p class="pot-hint">Your Deposit: 0.00 NGN</p>
         <p class="pot-hint">30s to place 4 rockets — then take turns hunting — no money involved!</p>
       </div>
       <button class="btn-primary" onclick="createWzGame()">Create Game</button>
@@ -190,7 +190,7 @@
         <input type="number" id="rounds" min="1" max="25" value="5">
       </div>
       <div class="form-group" id="rps-amount-group">
-        <label>Amount per Round (GHS 1-50)</label>
+        <label>Amount per Round (NGN 1-50)</label>
         <input type="number" id="amount" min="1" max="50" value="1">
       </div>
       <div class="form-group" id="rps-seconds-group">
@@ -220,13 +220,13 @@
         <p class="hint">Player does not choose anything 2 games in a row</p>
       </div>
       <div class="total-display" id="rps-pot-display">
-        <strong>Total Pot: <span id="total-pot">10.00</span> GHS</strong>
-        <p>Your Stake: <span id="your-share">5.00</span> GHS (deducted from wallet)</p>
+        <strong>Total Pot: <span id="total-pot">10.00</span> NGN</strong>
+        <p>Your Stake: <span id="your-share">5.00</span> NGN (deducted from wallet)</p>
         <p class="pot-hint">Winner gets pot minus 5% fee — credited to wallet instantly</p>
       </div>
       <div class="total-display free-badge" id="rps-free-badge" style="display:none;">
         <strong>Total Pot: FREE</strong>
-        <p>Your Deposit: 0.00 GHS</p>
+        <p>Your Deposit: 0.00 NGN</p>
         <p class="pot-hint">No money involved — just play for fun!</p>
       </div>
       <button class="btn-primary" onclick="createGame()">Create Game</button>
@@ -253,17 +253,17 @@
         <input type="number" id="rb-cards" min="1" max="52" value="5">
       </div>
       <div class="form-group" id="rb-bet-group">
-        <label>Bet per Card (1-20 GHS)</label>
+        <label>Bet per Card (1-20 NGN)</label>
         <input type="number" id="rb-bet" min="1" max="20" value="5">
       </div>
       <div class="total-display" id="rb-pot-display">
-        <strong>Total Pot: <span id="rb-pot">50.00</span> GHS</strong>
-        <p class="pot-hint">Your Stake: <span id="rb-share">25.00</span> GHS (deducted from wallet)</p>
+        <strong>Total Pot: <span id="rb-pot">50.00</span> NGN</strong>
+        <p class="pot-hint">Your Stake: <span id="rb-share">25.00</span> NGN (deducted from wallet)</p>
         <p class="pot-hint">Bet × cards × 2 players — winner takes pot minus 5% fee</p>
       </div>
       <div class="total-display free-badge" id="rb-free-badge" style="display:none;">
         <strong>Total Pot: FREE</strong>
-        <p class="pot-hint">Your Deposit: 0.00 GHS</p>
+        <p class="pot-hint">Your Deposit: 0.00 NGN</p>
         <p class="pot-hint">No money involved — just play for fun!</p>
       </div>
       <button class="btn-primary" onclick="createRbGame()">Create Game</button>
@@ -336,7 +336,7 @@
     <!-- Deposit Screen -->
     <div id="screen-deposit" class="screen">
       <h2>Deposit</h2>
-      <p>You need to deposit <strong id="deposit-amount">0.00</strong> GHS</p>
+      <p>You need to deposit <strong id="deposit-amount">0.00</strong> NGN</p>
       <p class="hint">This is your share of the pot. It will be held in escrow until the game is complete.</p>
       <button class="btn-primary" onclick="processDeposit()">Deposit & Confirm</button>
       <button class="btn-back" onclick="showScreen('screen-game-rules')">← Back</button>
@@ -388,18 +388,32 @@
     <div id="screen-wallet" class="screen">
       <h2>My Wallet</h2>
       <div class="wallet-box">
-        <span>Balance: <strong id="wallet-balance-full">0.00</strong> GHS</span>
+        <span>Balance: <strong id="wallet-balance-full">0.00</strong> NGN</span>
       </div>
       <div class="form-group">
-        <label>Deposit Amount (GHS)</label>
+        <label>Email (required for payments)</label>
+        <input type="email" id="wallet-email" placeholder="you@example.com">
+      </div>
+      <div class="form-group">
+        <label>Deposit Amount (NGN)</label>
         <input type="number" id="deposit-wallet-amount" min="1" max="500" placeholder="e.g. 10">
       </div>
-      <button class="btn-primary" onclick="depositFunds()">Deposit</button>
+      <button class="btn-primary" id="deposit-btn" onclick="depositFunds()">Deposit</button>
       <div class="form-group">
-        <label>Withdraw Amount (GHS)</label>
+        <label>Withdraw Amount (NGN)</label>
         <input type="number" id="withdraw-amount" min="1" max="50" placeholder="Enter amount">
       </div>
-      <button class="btn-primary" onclick="withdraw()">Withdraw</button>
+      <div class="form-group">
+        <label>Bank</label>
+        <select id="withdraw-bank"><option value="">Select bank…</option></select>
+      </div>
+      <div class="form-group">
+        <label>Account Number</label>
+        <input type="text" id="withdraw-account" maxlength="10" placeholder="e.g. 0123456789">
+      </div>
+      <div id="bank-status" style="font-size:13px;color:#1a7f37;min-height:16px;margin-bottom:8px"></div>
+      <button class="btn-primary" id="save-bank-btn" onclick="saveWithdrawBank()">Save Bank Account</button>
+      <button class="btn-primary" id="withdraw-btn" onclick="withdraw()">Withdraw</button>
       <div id="transactions" class="transactions"></div>
       <button class="btn-back" onclick="showScreen('screen-welcome')">← Back</button>
     </div>

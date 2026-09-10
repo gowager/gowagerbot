@@ -21,10 +21,18 @@ nb88/
 ```
 
 ## Data Model
-- **users**: `id` (internal `u_*`), `telegram_id` (unique login key), `username`, `tg_username`
+- **users**: `id` (internal `u_*`), `telegram_id` (unique login key), `username`, `tg_username`, `email` (required by Paystack)
 - **wallets**: `user_id`, `balance`
-- **games**: `id`, `room_code` (6 chars), `creator_id`, `opponent_id`, `game_type` (`rps` | `redblack`), `status` (`pending` → `ready` → `in_progress` → `completed` | `cancelled`), `rounds`, `amount_per_round`, `round_seconds`, `payout_style`, `resign_rule`, `is_free`, `pot`, `creator_role` (redblack only)
-- **transactions**: `user_id`, `type` (deposit/game_deposit/payout/refund), `amount`, `status`
+- **games**: `id`, `room_code` (6 chars), `creator_id`, `opponent_id`, `game_type` (`rps` | `redblack` | `warzone`), `status` (`pending` → `ready` → `in_progress` → `completed` | `cancelled`), `rounds`, `amount_per_round`, `round_seconds`, `payout_style`, `resign_rule`, `is_free`, `pot`, `creator_role` (redblack only)
+- **transactions**: `user_id`, `type` (deposit/game_deposit/payout/refund/withdrawal), `amount`, `status`, plus Paystack columns: `paystack_reference`, `transfer_code`, `recipient_code`
+
+## Paystack Integration
+- **Currency**: `PAYSTACK_CURRENCY` env var (default `NGN`; `GHS` supported). All amounts to Paystack are in the smallest unit (`amount × 100` — kobo for NGN, pesewas for GHS); all amounts to our wallet are in the main unit.
+- **Deposit flow**: `initialize` → user pays on Paystack hosted checkout (`authorization_url`) → `verify/:reference` OR the webhook credits the wallet. Each reference credits at most once (idempotent).
+- **Withdraw flow**: create recipient once per user (bank code + account number, `nuban` type) → store `recipient_code` → `withdraw` debits wallet, initiates `POST /transfer` (`source: balance`) → status endpoint/webhook confirms success/failure. Refund balance if transfer fails.
+- **Webhook**: `POST /api/paystack/webhook`, verified with HMAC SHA-512 of the raw body using the Paystack secret key (`x-paystack-signature` header). Only `charge.success` credits wallets; only `transfer.success`/`transfer.failed` settles withdrawals.
+- **Config (env)**: `PAYSTACK_SECRET_KEY`, `PAYSTACK_PUBLIC_KEY`, `PAYSTACK_CURRENCY` (base URL default `https://api.paystack.co`). Test keys vs live keys select sandbox/live.
+- **Payout mode**: transfer OTP should be disabled in the Paystack dashboard for fully automatic payouts.
 
 ## Money Rules (single source of truth)
 ```
@@ -46,8 +54,15 @@ refund     = exact amount deposited
 | GET | `/api/games/player/:userId/pending` | welcome-screen list |
 | POST | `/api/games/:id/cancel` | delete pending game + refund |
 | POST | `/api/demo/credit` | test-only faucet |
+| POST | `/api/paystack/initialize` | create Paystack checkout (deposit) |
+| GET | `/api/paystack/verify/:reference` | confirm deposit after checkout |
+| POST | `/api/paystack/webhook` | Paystack server-side events (charge.success) |
+| GET | `/api/paystack/banks` | bank list for withdrawal form (currency=GHS) |
+| POST | `/api/paystack/recipient` | create transfer recipient (bank + account) |
+| POST | `/api/paystack/withdraw` | initiate real payout from wallet balance |
+| GET | `/api/paystack/withdraw/:reference/status` | check transfer status |
 
-Rate limits: 20 req/min default per IP, 10/min on game creation/join, 5/min on demo credit.
+Rate limits: 20 req/min default per IP, 10/min on game creation/join, 5/min on wallet/deposit/withdraw actions.
 
 ## Socket.IO Protocol
 Rooms: `game_<id>` per game; sockets tagged with `userId`.
@@ -100,4 +115,5 @@ Both clients are screen-div SPAs (`showScreen('screen-x')`) sharing logic patter
 - Server validates every action against game state and role (only the dealer picks, only the invited opponent joins).
 - Private information (dealer hand, picks) is emitted only to the owner's socket.
 - Fee, stakes, and payouts computed only on the server.
-- Demo credit endpoint must be removed before production launch.
+- Demo credit endpoint must be removed before production launch; deposits come only through verified Paystack references.
+- Webhook endpoint verifies the Paystack signature before crediting any wallet.
