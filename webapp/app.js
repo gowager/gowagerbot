@@ -12,6 +12,7 @@ let myChoice = null;
 let timerInterval = null;
 let roundDeadline = null;
 let opponentHistory = [];
+let lastRoundInfo = null;
 let rbRoleIsDealer = false;
 let rbSelectedRole = null;
 const pendingGamesCache = {};
@@ -774,6 +775,19 @@ function updateOpponentHint() {
   el.textContent = `💡 Opponent ${reason} — try ${counters[predicted]}!`;
 }
 
+function updateLastRoundSummary() {
+  const el = document.getElementById('last-round-summary');
+  if (!el) return;
+  if (!lastRoundInfo) { el.textContent = ''; return; }
+  const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const EMOJI = { rock: '✊', paper: '✋', scissors: '✂️' };
+  const { round, myChoice, oppChoice, outcome } = lastRoundInfo;
+  const me = `${EMOJI[myChoice]} ${cap(myChoice)}`;
+  const opp = `${EMOJI[oppChoice]} ${cap(oppChoice)}`;
+  const res = outcome === 'win' ? 'You won! 🎉' : outcome === 'lose' ? 'Opponent won.' : "It's a tie.";
+  el.textContent = `Round ${round}: You chose ${me}, Opponent chose ${opp}. ${res}`;
+}
+
 // ---------- GAME PLAY ----------
 
 function makeChoice(choice) {
@@ -821,7 +835,9 @@ function startTimer(deadline) {
 socket.on('game_state', (data) => {
   currentGame = data.game;
   opponentHistory = [];
+  lastRoundInfo = null;
   updateOpponentHint();
+  updateLastRoundSummary();
   if (data.game.status === 'in_progress') {
     if (data.game.game_type === 'redblack') {
       rbRoleIsDealer = rbAmIDealer(data.game);
@@ -849,7 +865,9 @@ socket.on('game_started', (data) => {
   currentGame = data.game;
   myChoice = null;
   opponentHistory = [];
+  lastRoundInfo = null;
   updateOpponentHint();
+  updateLastRoundSummary();
   if (data.game.game_type === 'redblack') {
     rbRoleIsDealer = rbAmIDealer(data.game);
     document.getElementById('rb-role-label').textContent = rbRoleIsDealer ? 'You are the Dealer 🎩' : 'You are the Player 🎯';
@@ -979,6 +997,13 @@ socket.on('round_result', (data) => {
     resultEl.className = 'round-result lose';
     bumpScore('opp-score');
   }
+  lastRoundInfo = {
+    round: data.round,
+    myChoice: myChoiceMade,
+    oppChoice: oppChoiceMade,
+    outcome: data.roundWinner === 'tie' ? 'tie' : (data.roundWinner === myId ? 'win' : 'lose'),
+  };
+  updateLastRoundSummary();
 });
 
 function bumpScore(id) {
