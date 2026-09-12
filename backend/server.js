@@ -376,9 +376,7 @@ app.post('/api/games/:id/cancel', async (req, res) => {
   try {
     const game = await db.getGameById(req.params.id);
     if (!game) return res.status(404).json({ error: 'Game not found' });
-    const isCreator = game.creator_id === playerId;
-    const isOpponent = game.opponent_id === playerId;
-    if (!isCreator && !isOpponent) return res.status(403).json({ error: 'You are not part of this game' });
+    if (game.creator_id !== playerId) return res.status(403).json({ error: 'Only the creator can delete this game' });
     if (!['pending', 'ready'].includes(game.status)) return res.status(400).json({ error: 'Game already started or finished' });
 
     // Refund all deposited stakes for paid games
@@ -393,7 +391,7 @@ app.post('/api/games/:id/cancel', async (req, res) => {
     }
 
     // Notify anyone waiting in the room, then delete
-    io.to(`game_${game.id}`).emit('game_cancelled', { message: 'This game was deleted. Your stake was refunded.' });
+    io.to(`game_${game.id}`).emit('game_cancelled', { message: 'The creator deleted this game. Your stake was refunded.' });
     activeGames.delete(game.id);
     await db.deleteGame(game.id);
 
