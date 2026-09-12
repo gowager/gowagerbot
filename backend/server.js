@@ -1290,7 +1290,7 @@ function resolveRound(state) {
     }).then(updated => {
       state.game = updated;
       io.to(`game_${game.id}`).emit('round_result', {
-        round: game.current_round - 1, // 1-indexed round just finished
+        round: game.current_round, // round just finished (1-indexed)
         creatorChoice,
         opponentChoice,
         roundWinner,
