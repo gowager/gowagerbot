@@ -10,13 +10,13 @@
   <div id="app">
     <!-- Welcome Screen -->
     <div id="screen-welcome" class="screen active">
-      <div class="logo">🎮</div>
-      <h1>GoWager</h1>
-      <p>Wager with friends. Play games. Win real money.</p>
       <div class="wallet-bar">
         <span>💰 Balance: <strong id="wallet-balance">0.00</strong> NGN</span>
         <button class="btn-small" onclick="openWallet()">Wallet</button>
       </div>
+      <div class="logo">🎮</div>
+      <h1>GoWager</h1>
+      <p>Wager with friends. Play games. Win real money.</p>
       <button class="btn-free" onclick="startFreePlay()">🎉 Play Free with Friends</button>
       <button class="btn-primary" onclick="isFreeMode=false;showScreen('screen-games')">Wager with Friends</button>
       <button class="btn-secondary" id="pending-games-btn" onclick="openPendingGames()" disabled>👥 Pending Games <span id="pending-games-count"></span></button>
