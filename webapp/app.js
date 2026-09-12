@@ -15,12 +15,14 @@ let opponentHistory = [];
 let rbRoleIsDealer = false;
 let rbSelectedRole = null;
 const pendingGamesCache = {};
+let activeScreen = 'screen-welcome';
 
 // ---------- UTILITIES ----------
 
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
+  activeScreen = id;
   if (id === 'screen-welcome') { loadPendingGames(); isFreeMode = false; }
   if (id === 'screen-create-game') applyFreeModeUI('rps');
   if (id === 'screen-create-rb') applyFreeModeUI('rb');
@@ -674,25 +676,44 @@ async function loadPendingGames() {
   if (!currentUser) return;
   try {
     const games = await api(`/api/games/player/${currentUser.id}/pending`);
-    const container = document.getElementById('pending-games');
-    if (!container) return;
     games.forEach(g => { pendingGamesCache[g.id] = g; });
-    if (games.length === 0) {
-      container.innerHTML = '';
-      return;
+    updatePendingGamesButton(games);
+    if (activeScreen === 'screen-pending') {
+      renderPendingGames(document.getElementById('pending-games-list'), games);
     }
-    container.innerHTML = '<h3 style="margin:18px 0 8px;font-size:16px;">My Games</h3>' + games.map(g => `
-      <div style="display:flex;align-items:center;gap:8px;padding:10px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;">
-        <span style="flex:1;font-size:14px;">
-          <strong>${g.room_code}</strong> · ${g.status === 'ready' ? 'Ready to start' : 'Waiting for opponent'}${g.is_free ? ' · FREE' : ''}
-        </span>
-        <button class="btn-small" onclick="enterPendingGame('${g.id}')">Enter</button>
-        ${g.creator_id === currentUser.id ? `<button class="btn-small" onclick="cancelPendingGame('${g.id}')">Delete</button>` : ''}
-      </div>
-    `).join('');
   } catch (err) {
     console.error('Failed to load pending games:', err);
   }
+}
+
+function updatePendingGamesButton(games) {
+  const btn = document.getElementById('pending-games-btn');
+  if (!btn) return;
+  btn.disabled = !games || games.length === 0;
+  const countEl = document.getElementById('pending-games-count');
+  if (countEl) countEl.textContent = games && games.length ? `(${games.length})` : '';
+}
+
+function openPendingGames() {
+  showScreen('screen-pending');
+  loadPendingGames();
+}
+
+function renderPendingGames(container, games) {
+  if (!container) return;
+  if (!games || games.length === 0) {
+    container.innerHTML = '<p style="color:#999;font-size:14px">No pending games right now.</p>';
+    return;
+  }
+  container.innerHTML = games.map(g => `
+    <div style="display:flex;align-items:center;gap:8px;padding:10px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;">
+      <span style="flex:1;font-size:14px;">
+        <strong>${g.room_code}</strong> · ${g.status === 'ready' ? 'Ready to start' : 'Waiting for opponent'}${g.is_free ? ' · FREE' : ''}
+      </span>
+      <button class="btn-small" onclick="enterPendingGame('${g.id}')">Enter</button>
+      ${g.creator_id === currentUser.id ? `<button class="btn-small" onclick="cancelPendingGame('${g.id}')">Delete</button>` : ''}
+    </div>
+  `).join('');
 }
 
 function enterPendingGame(gameId) {

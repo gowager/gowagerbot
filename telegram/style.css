@@ -166,6 +166,10 @@ h2 {
   transform: scale(0.96);
   background: rgba(78, 158, 255, 0.1);
 }
+.btn-outline:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
 .btn-big {
   padding: 18px;

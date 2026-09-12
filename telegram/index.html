@@ -19,6 +19,7 @@
       <div class="actions">
         <button class="btn-free" onclick="startFreePlay()">🎉 Play Free with Friends</button>
         <button class="btn-primary" onclick="isFreeMode=false;showScreen('screen-games')">Wager with Friends</button>
+        <button class="btn-outline" id="pending-games-btn" onclick="openPendingGames()" disabled>👥 Pending Games</button>
         <button class="btn-outline" onclick="showScreen('screen-howto')">How To Use App</button>
         <button class="btn-outline" onclick="openWallet()">💰 Wallet</button>
       </div>
@@ -27,7 +28,16 @@
         <span id="wallet-balance">0.00</span>
         <span>NGN</span>
       </div>
-      <div id="pending-games" class="actions"></div>
+    </div>
+
+    <!-- Pending Games -->
+    <div id="screen-pending" class="screen">
+      <div class="header">
+        <h2>Pending Games</h2>
+      </div>
+      <p class="hint">Games waiting for you or your friends. Tap Enter to join or continue.</p>
+      <div id="pending-games-list"></div>
+      <button class="btn-primary" onclick="showScreen('screen-welcome')">← Back to Home</button>
     </div>
 
     <!-- How To Use -->
