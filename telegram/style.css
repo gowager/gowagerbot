@@ -668,6 +668,12 @@ h2 {
 .stat.center {
   border-left: 1px solid rgba(255,255,255,0.1);
   border-right: 1px solid rgba(255,255,255,0.1);
+  min-width: 96px;
+}
+
+.stat.center strong {
+  white-space: nowrap;
+  font-size: 22px;
 }
 
 .stat span {

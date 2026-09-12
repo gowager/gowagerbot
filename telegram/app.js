@@ -863,8 +863,7 @@ socket.on('game_state', (data) => {
     } else {
       showScreen('screen-play');
     }
-    document.getElementById('current-round').textContent = data.game.current_round;
-    document.getElementById('total-rounds').textContent = data.game.rounds;
+    document.getElementById('round-display').textContent = `${data.game.current_round}/${data.game.rounds}`;
     document.getElementById('my-score').textContent = isCreator ? data.game.creator_score : data.game.opponent_score;
     document.getElementById('opp-score').textContent = isCreator ? data.game.opponent_score : data.game.creator_score;
     if (data.deadline) startTimer(data.deadline);
@@ -897,8 +896,7 @@ socket.on('game_started', (data) => {
     wzResetLocal();
     showScreen('screen-play-wz');
   } else {
-    document.getElementById('current-round').textContent = 1;
-    document.getElementById('total-rounds').textContent = data.game.rounds;
+    document.getElementById('round-display').textContent = `1/${data.game.rounds}`;
     document.getElementById('my-score').textContent = 0;
     document.getElementById('opp-score').textContent = 0;
     showToast('Both players ready — game started!', 'success');
@@ -965,8 +963,7 @@ socket.on('game_cancelled', (data) => {
 });
 
 socket.on('round_started', (data) => {
-  document.getElementById('current-round').textContent = data.round;
-  document.getElementById('total-rounds').textContent = currentGame.rounds;
+  document.getElementById('round-display').textContent = `${data.round}/${currentGame.rounds}`;
   myChoice = null;
   document.querySelectorAll('.rps-btn').forEach(btn => { btn.disabled = false; btn.classList.remove('picked'); });
   document.getElementById('round-result').textContent = '';
