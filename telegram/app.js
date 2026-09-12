@@ -740,7 +740,7 @@ function renderPendingGames(container, games) {
         <strong>${g.room_code}</strong> · ${g.status === 'ready' ? 'Ready to start' : 'Waiting for opponent'}${g.is_free ? ' · FREE' : ''}
       </span>
       <button class="btn-outline btn-sm" onclick="enterPendingGame('${g.id}')">Enter</button>
-      ${g.creator_id === currentUser.id ? `<button class="btn-outline btn-sm" onclick="cancelPendingGame('${g.id}')">Delete</button>` : ''}
+      ${g.creator_id === currentUser.id || g.opponent_id === currentUser.id ? `<button class="btn-outline btn-sm" onclick="cancelPendingGame('${g.id}')">Delete</button>` : ''}
     </div>
   `).join('');
 }
