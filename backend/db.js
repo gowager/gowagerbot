@@ -22,10 +22,22 @@ async function initDb() {
       return;
     } catch (err) {
       console.warn('Postgres connection failed, falling back to in-memory store:', err.message);
+      if (process.env.ENFORCE_DATABASE === '1') {
+        console.error('ENFORCE_DATABASE=1 but Postgres is unavailable — refusing to start on the volatile in-memory store.');
+        process.exit(1);
+      }
     }
   }
   useMemory = true;
   console.log('Using in-memory store (no DATABASE_URL provided).');
+  if (process.env.ENFORCE_DATABASE === '1') {
+    console.error('ENFORCE_DATABASE=1 but DATABASE_URL is not set — refusing to start on the volatile in-memory store.');
+    process.exit(1);
+  }
+}
+
+function getDbMode() {
+  return useMemory ? 'memory' : 'postgres';
 }
 
 async function createTables() {
@@ -95,6 +107,10 @@ async function createTables() {
   await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS transfer_code TEXT`);
   await pool.query(`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS recipient_code TEXT`);
   await pool.query(`ALTER TABLE games ADD COLUMN IF NOT EXISTS creator_role TEXT`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_withdrawal_requests_user ON withdrawal_requests(user_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_games_creator ON games(creator_id)`);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_games_opponent ON games(opponent_id)`);
 }
 
 // ---- User helpers ----
@@ -423,6 +439,7 @@ async function updateWithdrawalRequest(id, updates) {
 
 module.exports = {
   initDb,
+  getDbMode,
   getOrCreateUser,
   getUserByTelegramId,
   getUserByUsername,

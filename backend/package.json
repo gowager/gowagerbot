@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "db:setup": "node scripts/init-db.js"
+    "db:setup": "node scripts/init-db.js",
+    "db:backup": "node scripts/backup.js",
+    "db:restore": "node scripts/restore.js"
   },
   "dependencies": {
     "cors": "^2.8.5",

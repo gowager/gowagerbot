@@ -119,7 +119,7 @@ function generateRoomCode() {
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', service: 'GoWager' });
+  res.json({ status: 'ok', service: 'GoWager', db: db.getDbMode() });
 });
 
 // Register / login user
