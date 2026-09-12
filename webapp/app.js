@@ -89,7 +89,11 @@ async function api(path, options = {}) {
     ...options,
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) {
+    const err = new Error(data.error || 'Request failed');
+    err.status = res.status;
+    throw err;
+  }
   return data;
 }
 
@@ -152,7 +156,7 @@ function setRbRole(role) {
 }
 
 function updateRbPot() {
-  const bet = parseInt(document.getElementById('rb-bet').value) || 1;
+  const bet = parseInt(document.getElementById('rb-bet').value) || 50;
   const cards = parseInt(document.getElementById('rb-cards').value) || 1;
   const potEl = document.getElementById('rb-pot');
   const shareEl = document.getElementById('rb-share');
@@ -170,7 +174,7 @@ let wzMyTurn = false;
 let wzTimerInt = null;
 
 function updateWzPot() {
-  const stake = parseInt(document.getElementById('wz-stake').value) || 1;
+  const stake = parseInt(document.getElementById('wz-stake').value) || 50;
   const potEl = document.getElementById('wz-pot');
   const shareEl = document.getElementById('wz-share');
   if (potEl) potEl.textContent = (stake * 2).toFixed(2);
@@ -181,7 +185,7 @@ async function createWzGame() {
   const opponentTelegramId = document.getElementById('wz-opponent-id').value.trim();
   const stake = parseInt(document.getElementById('wz-stake').value);
   if (!opponentTelegramId) return showToast('Enter your opponent\'s Telegram ID or @username', 'error');
-  if (!isFreeMode && (stake < 1 || stake > 50)) return showToast('Stake must be between 1 and 50 NGN per match', 'error');
+  if (!isFreeMode && (stake < 50 || stake > 500 || stake % 10 !== 0)) return showToast('Stake must be 50–500 NGN per match, in multiples of 10', 'error');
   try {
     const data = await api('/api/games', {
       method: 'POST',
@@ -389,7 +393,7 @@ async function createRbGame() {
   if (!opponentTelegramId) return showToast('Enter your opponent\'s Telegram ID or @username', 'error');
   if (!rbSelectedRole) return showToast('Choose your role: Dealer or Player', 'error');
   if (cards < 1 || cards > 52) return showToast('Cards must be between 1 and 52', 'error');
-  if (!isFreeMode && (bet < 1 || bet > 20)) return showToast('Bet must be between 1 and 20 NGN per card', 'error');
+  if (!isFreeMode && (bet < 50 || bet > 500 || bet % 10 !== 0)) return showToast('Bet must be 50–500 NGN per card, in multiples of 10', 'error');
 
   try {
     const data = await api('/api/games', {
@@ -464,7 +468,7 @@ function startFreePlay() {
 
 function updateTotalPot() {
   const rounds = parseInt(document.getElementById('rounds').value) || 1;
-  const amount = parseInt(document.getElementById('amount').value) || 1;
+  const amount = parseInt(document.getElementById('amount').value) || 50;
   const yourStake = rounds * amount;      // Your deposit (rounds × amount)
   const totalPot = yourStake * 2;         // Total pot = both players' stakes
   document.getElementById('total-pot').textContent = totalPot.toFixed(2);
@@ -495,8 +499,8 @@ async function createGame() {
     showToast('Rounds must be between 1 and 25', 'error');
     return;
   }
-  if (!isFreeMode && (amountPerRound < 1 || amountPerRound > 50)) {
-    showToast('Amount must be between 1 and 50 NGN', 'error');
+  if (!isFreeMode && (amountPerRound < 50 || amountPerRound > 500 || amountPerRound % 10 !== 0)) {
+    showToast('Amount must be 50–500 NGN, in multiples of 10', 'error');
     return;
   }
 
@@ -1030,8 +1034,8 @@ async function openWallet() {
 
 async function depositFunds() {
   const amount = parseInt(document.getElementById('deposit-wallet-amount').value);
-  if (!amount || amount < 1 || amount > 500) {
-    showToast('Enter a valid amount (1–500 NGN)', 'error');
+  if (!amount || amount < 100 || amount > 5000 || amount % 50 !== 0) {
+    showToast('Enter 100–5,000 NGN in multiples of 50', 'error');
     return;
   }
   const emailInput = document.getElementById('wallet-email');
@@ -1186,26 +1190,63 @@ async function cancelWithdrawalRequest(id) {
 }
 
 function getAdminCode() {
-  let code = sessionStorage.getItem('gowager_admin_code');
-  if (!code) {
-    code = prompt('Enter admin passcode:');
-    if (code) sessionStorage.setItem('gowager_admin_code', code);
-  }
-  return code;
+  return sessionStorage.getItem('gowager_admin_code') || '';
 }
 
-async function openAdmin() {
+function showAdminLogin() {
+  const loginEl = document.getElementById('admin-login');
+  const panelEl = document.getElementById('admin-panel');
+  if (loginEl) loginEl.style.display = 'block';
+  if (panelEl) panelEl.style.display = 'none';
+}
+
+function showAdminPanel() {
+  const loginEl = document.getElementById('admin-login');
+  const panelEl = document.getElementById('admin-panel');
+  if (loginEl) loginEl.style.display = 'none';
+  if (panelEl) panelEl.style.display = 'block';
+}
+
+async function adminLogin() {
+  const passInput = document.getElementById('admin-pass');
+  const code = (passInput.value || '').trim();
+  if (!code) { showToast('Enter the admin passcode', 'error'); return; }
+  try {
+    await api('/api/admin/withdrawal-requests?status=pending', { headers: { 'x-admin-code': code } });
+    sessionStorage.setItem('gowager_admin_code', code);
+    passInput.value = '';
+    showToast('Admin authenticated', 'success');
+    showAdminPanel();
+    loadAdminRequests('pending');
+  } catch (err) {
+    if (err.status === 403) showToast('Wrong passcode', 'error');
+    else showToast(err.message, 'error');
+  }
+}
+
+function adminLogout() {
+  sessionStorage.removeItem('gowager_admin_code');
+  document.getElementById('admin-requests-list').innerHTML = '';
+  document.getElementById('admin-note').textContent = '';
+  showAdminLogin();
+}
+
+function openAdmin() {
   showScreen('screen-admin');
-  if (!getAdminCode()) return showToast('Passcode required', 'error');
-  loadAdminRequests('pending');
+  if (getAdminCode()) {
+    showAdminPanel();
+    loadAdminRequests('pending');
+  } else {
+    showAdminLogin();
+  }
 }
 
 async function loadAdminRequests(status = '') {
   const code = getAdminCode();
-  if (!code) return;
+  if (!code) { showAdminLogin(); return; }
   const listEl = document.getElementById('admin-requests-list');
-  listEl.innerHTML = '<p style="color:#999;font-size:14px">Loading…</p>';
   const noteEl = document.getElementById('admin-note');
+  listEl.innerHTML = '<p style="color:#999;font-size:14px">Loading…</p>';
   try {
     const reqs = await api(`/api/admin/withdrawal-requests?status=${encodeURIComponent(status)}`, {
       headers: { 'x-admin-code': code },
@@ -1233,6 +1274,7 @@ async function loadAdminRequests(status = '') {
       </div>
     `).join('');
   } catch (err) {
+    if (err.status === 403) { sessionStorage.removeItem('gowager_admin_code'); showAdminLogin(); showToast('Session expired — log in again', 'error'); return; }
     showToast(err.message, 'error');
     noteEl.textContent = err.message;
   }
@@ -1240,6 +1282,7 @@ async function loadAdminRequests(status = '') {
 
 async function processWithdrawalRequest(id) {
   const code = getAdminCode();
+  if (!code) { showAdminLogin(); return showToast('Session expired — log in again', 'error'); }
   showModal('Mark as completed?', 'You are confirming this withdrawal has been paid out to the player.', async () => {
     try {
       await api(`/api/admin/withdrawal-requests/${id}/process`, { method: 'POST', headers: { 'x-admin-code': code } });
@@ -1251,6 +1294,7 @@ async function processWithdrawalRequest(id) {
 
 async function rejectWithdrawalRequest(id) {
   const code = getAdminCode();
+  if (!code) { showAdminLogin(); return showToast('Session expired — log in again', 'error'); }
   showModal('Reject and refund?', 'The held balance will be returned to the player.', async () => {
     try {
       await api(`/api/admin/withdrawal-requests/${id}/reject`, { method: 'POST', headers: { 'x-admin-code': code } });

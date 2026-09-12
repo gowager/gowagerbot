@@ -841,3 +841,7 @@ p {
 .wr-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .admin-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
 #screen-admin h2 { text-align: center; }
+.admin-login { background: #23233a; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
+.admin-login .form-group { margin-bottom: 10px; }
+.admin-login label { display: block; color: #bbb; font-size: 13px; margin-bottom: 4px; }
+.admin-login input { width: 100%; box-sizing: border-box; }

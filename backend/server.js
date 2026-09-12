@@ -81,9 +81,16 @@ function checkRateLimit(key, max = 20, windowMs = 60000) {
   return entry.count <= max;
 }
 
+const GAME_MIN_NGN = 50;
+const GAME_MAX_NGN = 500;
+const GAME_STEP_NGN = 10;
+const DEPOSIT_MIN_NGN = 100;
+const DEPOSIT_MAX_NGN = 5000;
+const DEPOSIT_STEP_NGN = 50;
+
 function validateAmount(amount) {
   const n = Number(amount);
-  return Number.isInteger(n) && n >= 1 && n <= 50;
+  return Number.isInteger(n) && n >= GAME_MIN_NGN && n <= GAME_MAX_NGN && n % GAME_STEP_NGN === 0;
 }
 
 function validateRounds(rounds) {
@@ -205,15 +212,15 @@ app.post('/api/games', async (req, res) => {
   if (type === 'redblack') {
     if (!validateCreatorRole(creatorRole)) return res.status(400).json({ error: 'Choose to be Dealer or Player' });
     if (!validateRounds(rounds) || Number(rounds) > 52) return res.status(400).json({ error: 'Cards must be 1-52' });
-    if (!free && !validateAmount(amountPerRound) || (free === false && Number(amountPerRound) > 20)) {
-      return res.status(400).json({ error: 'Bet must be 1-20 NGN per game' });
+    if (!free && !validateAmount(amountPerRound)) {
+      return res.status(400).json({ error: `Bet must be ${GAME_MIN_NGN}-${GAME_MAX_NGN} NGN per card, in multiples of ${GAME_STEP_NGN}` });
     }
   } else if (type === 'warzone') {
     // Single-match stake: amount is the whole match bet, rounds forced to 1
-    if (!free && !validateAmount(amountPerRound)) return res.status(400).json({ error: 'Stake must be 1-50 NGN per match' });
+    if (!free && !validateAmount(amountPerRound)) return res.status(400).json({ error: `Stake must be ${GAME_MIN_NGN}-${GAME_MAX_NGN} NGN per match, in multiples of ${GAME_STEP_NGN}` });
   } else {
     if (!validateRounds(rounds)) return res.status(400).json({ error: 'Rounds must be 1-25' });
-    if (!free && !validateAmount(amountPerRound)) return res.status(400).json({ error: 'Amount must be 1-50 NGN' });
+    if (!free && !validateAmount(amountPerRound)) return res.status(400).json({ error: `Amount must be ${GAME_MIN_NGN}-${GAME_MAX_NGN} NGN, in multiples of ${GAME_STEP_NGN}` });
   }
   if (!free && !validateRoundSeconds(roundSeconds)) return res.status(400).json({ error: 'Round seconds must be 30, 45, or 60' });
   if (!validatePayoutStyle(payoutStyle)) return res.status(400).json({ error: 'Invalid payout style' });
@@ -422,8 +429,8 @@ app.post('/api/deposit', async (req, res) => {
   if (!checkRateLimit(req.ip, 5)) return res.status(429).json({ error: 'Too many requests' });
   const { userId, amount } = req.body;
   const num = Number(amount);
-  if (!userId || !Number.isFinite(num) || num < 1 || num > 500) {
-    return res.status(400).json({ error: 'Deposit amount must be 1–500 NGN' });
+  if (!userId || !Number.isFinite(num) || num < DEPOSIT_MIN_NGN || num > DEPOSIT_MAX_NGN || num % DEPOSIT_STEP_NGN !== 0) {
+    return res.status(400).json({ error: `Deposit amount must be ${DEPOSIT_MIN_NGN}–${DEPOSIT_MAX_NGN} NGN in multiples of ${DEPOSIT_STEP_NGN}` });
   }
   try {
     await db.addFunds(userId, num);
@@ -448,8 +455,8 @@ app.post('/api/paystack/initialize', async (req, res) => {
   if (!hasPaystack()) return res.status(503).json({ error: 'Paystack is not configured yet' });
   const { userId, amount, email, callbackUrl } = req.body;
   const num = Number(amount);
-  if (!userId || !Number.isInteger(num) || num < 1 || num > 500) {
-    return res.status(400).json({ error: 'Deposit amount must be 1–500 NGN' });
+  if (!userId || !Number.isInteger(num) || num < DEPOSIT_MIN_NGN || num > DEPOSIT_MAX_NGN || num % DEPOSIT_STEP_NGN !== 0) {
+    return res.status(400).json({ error: `Deposit amount must be ${DEPOSIT_MIN_NGN}–${DEPOSIT_MAX_NGN} NGN in multiples of ${DEPOSIT_STEP_NGN}` });
   }
   try {
     const user = await db.getUserById(userId);

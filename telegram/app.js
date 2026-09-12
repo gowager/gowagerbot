@@ -177,7 +177,7 @@ function setRbRole(role) {
 }
 
 function updateRbPot() {
-  const bet = parseInt(document.getElementById('rb-bet').value) || 1;
+  const bet = parseInt(document.getElementById('rb-bet').value) || 50;
   const cards = parseInt(document.getElementById('rb-cards').value) || 1;
   const potEl = document.getElementById('rb-pot');
   const shareEl = document.getElementById('rb-share');
@@ -193,7 +193,7 @@ async function createRbGame() {
   if (!opponentTelegramId) return showToast('Enter your opponent\'s Telegram ID or @username', 'error');
   if (!rbSelectedRole) return showToast('Choose your role: Dealer or Player', 'error');
   if (cards < 1 || cards > 52) return showToast('Cards must be between 1 and 52', 'error');
-  if (!isFreeMode && (bet < 1 || bet > 20)) return showToast('Bet must be between 1 and 20 NGN per card', 'error');
+  if (!isFreeMode && (bet < 50 || bet > 500 || bet % 10 !== 0)) return showToast('Bet must be 50-500 NGN per card, in multiples of 10', 'error');
 
   try {
     const data = await api('/api/games', {
@@ -246,7 +246,7 @@ let wzTimerInt = null;
 let wzEnemyMarks = new Map();
 
 function updateWzPot() {
-  const stake = parseInt(document.getElementById('wz-stake').value) || 1;
+  const stake = parseInt(document.getElementById('wz-stake').value) || 50;
   const potEl = document.getElementById('wz-pot');
   const shareEl = document.getElementById('wz-share');
   if (potEl) potEl.textContent = (stake * 2).toFixed(2);
@@ -257,7 +257,7 @@ async function createWzGame() {
   const opponentTelegramId = document.getElementById('wz-opponent-id').value.trim();
   const stake = parseInt(document.getElementById('wz-stake').value);
   if (!opponentTelegramId) return showToast('Enter your opponent\'s Telegram ID or @username', 'error');
-  if (!isFreeMode && (stake < 1 || stake > 50)) return showToast('Stake must be between 1 and 50 NGN per match', 'error');
+  if (!isFreeMode && (stake < 50 || stake > 500 || stake % 10 !== 0)) return showToast('Stake must be 50-500 NGN per match, in multiples of 10', 'error');
   try {
     const data = await api('/api/games', {
       method: 'POST',
@@ -483,7 +483,8 @@ function stepValue(id, delta) {
   const input = document.getElementById(id);
   const min = parseInt(input.min);
   const max = parseInt(input.max);
-  let val = parseInt(input.value) + delta;
+  const step = parseInt(input.step || '1');
+  let val = parseInt(input.value || min) + delta * step;
   if (val < min) val = min;
   if (val > max) val = max;
   input.value = val;
@@ -501,7 +502,7 @@ function selectSeg(btn, hiddenId) {
 
 function updateTotalPot() {
   const rounds = parseInt(document.getElementById('rounds').value) || 1;
-  const amount = parseInt(document.getElementById('amount').value) || 1;
+  const amount = parseInt(document.getElementById('amount').value) || 50;
   const yourStake = rounds * amount;      // Your deposit (rounds × amount)
   const totalPot = yourStake * 2;         // Total pot = both players' stakes
   document.getElementById('total-pot').textContent = totalPot.toFixed(2) + ' NGN';
@@ -526,8 +527,8 @@ async function createGame() {
     showToast('Rounds must be 1-25', 'error');
     return;
   }
-  if (!isFreeMode && (amountPerRound < 1 || amountPerRound > 50)) {
-    showToast('Amount must be 1-50 NGN', 'error');
+  if (!isFreeMode && (amountPerRound < 50 || amountPerRound > 500 || amountPerRound % 10 !== 0)) {
+    showToast('Amount must be 50-500 NGN, in multiples of 10', 'error');
     return;
   }
 
@@ -1066,8 +1067,8 @@ async function openWallet() {
 
 async function depositFunds() {
   const amount = parseInt(document.getElementById('deposit-wallet-amount').value);
-  if (!amount || amount < 1 || amount > 500) {
-    showToast('Enter a valid amount (1–500 NGN)', 'error');
+  if (!amount || amount < 100 || amount > 5000 || amount % 50 !== 0) {
+    showToast('Enter 100–5,000 NGN in multiples of 50', 'error');
     return;
   }
   const emailInput = document.getElementById('wallet-email');
