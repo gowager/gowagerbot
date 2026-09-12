@@ -1140,10 +1140,10 @@ async function loadWithdrawalRequests() {
       container.innerHTML += '<p style="color:#999;font-size:14px">No withdrawal requests yet</p>';
       return;
     }
-    const statusLabels = { pending: '⏳ Pending', processed: '✅ Processed', cancelled: '✖️ Cancelled', rejected: '↩️ Rejected' };
+    const statusLabels = { pending: '⏳ Pending', completed: '✅ Completed', cancelled: '✖️ Cancelled', rejected: '↩️ Rejected', processed: '✅ Completed' };
     reqs.forEach(wr => {
       const canCancel = wr.status === 'pending' && cancelWindowMs(wr.created_at) > 0;
-      const statusColor = wr.status === 'processed' ? '#1a7f37' : wr.status === 'pending' ? '#b45309' : '#999';
+      const statusColor = wr.status === 'completed' || wr.status === 'processed' ? '#1a7f37' : wr.status === 'pending' ? '#b45309' : '#999';
       container.innerHTML += `
         <div class="wr-item">
           <div class="wr-top">
@@ -1215,18 +1215,18 @@ async function loadAdminRequests(status = '') {
       listEl.innerHTML = '<p style="color:#999;font-size:14px">No requests found</p>';
       return;
     }
-    const statusLabels = { pending: '⏳ Pending', processed: '✅ Processed', cancelled: '✖️ Cancelled', rejected: '↩️ Rejected' };
+    const statusLabels = { pending: '⏳ Pending', completed: '✅ Completed', cancelled: '✖️ Cancelled', rejected: '↩️ Rejected', processed: '✅ Completed' };
     listEl.innerHTML = reqs.map(wr => `
       <div class="wr-item">
         <div class="wr-top">
           <strong>${Number(wr.amount).toFixed(2)} NGN</strong>
-          <span class="wr-status" style="color:${wr.status === 'processed' ? '#1a7f37' : wr.status === 'pending' ? '#b45309' : '#999'}">${statusLabels[wr.status] || wr.status}</span>
+          <span class="wr-status" style="color:${wr.status === 'completed' || wr.status === 'processed' ? '#1a7f37' : wr.status === 'pending' ? '#b45309' : '#999'}">${statusLabels[wr.status] || wr.status}</span>
         </div>
         <div class="wr-details">${escHtml(wr.full_name)} · ${escHtml(wr.bank_name)} · ${escHtml(wr.account_number)}</div>
         <div class="wr-meta">Player: ${wr.user ? escHtml(wr.user.username || wr.user.telegram_id) : 'unknown'} · ${new Date(wr.created_at).toLocaleString()}</div>
         <div class="wr-actions">
           ${wr.status === 'pending' ? `
-            <button class="btn-primary btn-sm" onclick="processWithdrawalRequest('${wr.id}')">Mark Processed</button>
+            <button class="btn-primary btn-sm" onclick="processWithdrawalRequest('${wr.id}')">Mark Completed</button>
             <button class="btn-secondary btn-sm" onclick="rejectWithdrawalRequest('${wr.id}')">Reject & Refund</button>
           ` : ''}
         </div>
@@ -1240,10 +1240,10 @@ async function loadAdminRequests(status = '') {
 
 async function processWithdrawalRequest(id) {
   const code = getAdminCode();
-  showModal('Confirm payout?', 'You are confirming this withdrawal has been paid manually.', async () => {
+  showModal('Mark as completed?', 'You are confirming this withdrawal has been paid out to the player.', async () => {
     try {
       await api(`/api/admin/withdrawal-requests/${id}/process`, { method: 'POST', headers: { 'x-admin-code': code } });
-      showToast('Marked as processed', 'success');
+      showToast('Marked as completed', 'success');
       loadAdminRequests('pending');
     } catch (err) { showToast(err.message, 'error'); }
   }, () => {});

@@ -686,7 +686,13 @@ app.get('/api/admin/withdrawal-requests', isAdmin, async (req, res) => {
   if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
   try {
     const status = req.query.status || '';
-    const rows = await db.getAllWithdrawalRequests(status || null);
+    let rows;
+    if (status === 'completed') {
+      // 'completed' is the current paid-out status; 'processed' is the legacy name
+      rows = (await db.getAllWithdrawalRequests(null)).filter(r => r.status === 'completed' || r.status === 'processed');
+    } else {
+      rows = await db.getAllWithdrawalRequests(status || null);
+    }
     const withUsers = await Promise.all(rows.map(async (r) => {
       const user = await db.getUserById(r.user_id);
       return { ...r, user: user ? { telegram_id: user.telegram_id, username: user.username, email: user.email || null } : null };
@@ -697,14 +703,14 @@ app.get('/api/admin/withdrawal-requests', isAdmin, async (req, res) => {
   }
 });
 
-// Admin marks a request as paid out manually
+// Admin marks a request as paid out (pending -> completed)
 app.post('/api/admin/withdrawal-requests/:id/process', isAdmin, async (req, res) => {
   try {
     const wr = await db.getWithdrawalRequest(String(req.params.id));
     if (!wr) return res.status(404).json({ error: 'Request not found' });
-    if (wr.status !== 'pending') return res.status(400).json({ error: 'Only pending requests can be processed' });
+    if (wr.status !== 'pending') return res.status(400).json({ error: 'Only pending requests can be completed' });
 
-    await db.updateWithdrawalRequest(wr.id, { status: 'processed' });
+    await db.updateWithdrawalRequest(wr.id, { status: 'completed' });
     const tx = await db.getTransactionByReference(wr.id);
     if (tx) await db.updateTransaction(tx.id, { status: 'completed' });
 

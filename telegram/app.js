@@ -1180,10 +1180,10 @@ async function loadWithdrawalRequests() {
       container.innerHTML += '<p style="color:var(--tg-hint);font-size:13px">No withdrawal requests yet</p>';
       return;
     }
-    const statusLabels = { pending: '⏳ Pending', processed: '✅ Processed', cancelled: '✖️ Cancelled', rejected: '↩️ Rejected' };
+    const statusLabels = { pending: '⏳ Pending', completed: '✅ Completed', cancelled: '✖️ Cancelled', rejected: '↩️ Rejected', processed: '✅ Completed' };
     reqs.forEach(wr => {
       const canCancel = wr.status === 'pending' && cancelWindowMs(wr.created_at) > 0;
-      const statusColor = wr.status === 'processed' ? '#4ade80' : wr.status === 'pending' ? '#facc15' : 'var(--tg-hint)';
+      const statusColor = wr.status === 'completed' || wr.status === 'processed' ? '#4ade80' : wr.status === 'pending' ? '#facc15' : 'var(--tg-hint)';
       container.innerHTML += `
         <div class="wr-item">
           <div class="wr-top">
