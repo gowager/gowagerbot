@@ -845,3 +845,5 @@ p {
 .admin-login .form-group { margin-bottom: 10px; }
 .admin-login label { display: block; color: #bbb; font-size: 13px; margin-bottom: 4px; }
 .admin-login input { width: 100%; box-sizing: border-box; }
+.section-title { margin: 18px 0 2px; font-size: 17px; font-weight: 700; color: #333; }
+.section-hint { font-size: 13px; color: #888; margin-bottom: 10px; }

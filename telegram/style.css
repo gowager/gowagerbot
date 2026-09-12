@@ -1128,6 +1128,8 @@ h2 {
   text-align: center;
 }
 #screen-wallet .btn-back:hover { color: #667eea; }
+#screen-wallet .section-title { font-size: 17px; font-weight: 700; color: #333; margin: 18px 0 2px; }
+#screen-wallet .section-hint { font-size: 13px; color: #888; margin-bottom: 10px; }
 #screen-wallet #bank-status { color: #1a7f37; }
 #screen-wallet .transactions {
   margin-top: 15px;
