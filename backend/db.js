@@ -6,6 +6,7 @@ const memoryStore = {
   games: new Map(),
   wallets: new Map(),
   transactions: new Map(),
+  withdrawalRequests: new Map(),
 };
 
 let pool = null;
@@ -73,6 +74,16 @@ async function createTables() {
       paystack_reference TEXT,
       transfer_code TEXT,
       recipient_code TEXT,
+      created_at TIMESTAMP DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS withdrawal_requests (
+      id TEXT PRIMARY KEY,
+      user_id TEXT REFERENCES users(id),
+      full_name TEXT,
+      account_number TEXT,
+      bank_name TEXT,
+      amount NUMERIC(12,2),
+      status TEXT DEFAULT 'pending',
       created_at TIMESTAMP DEFAULT NOW()
     );
    `);
@@ -341,6 +352,75 @@ async function getTransactionsByUser(userId) {
   return res.rows;
 }
 
+// ---- Withdrawal request helpers ----
+async function createWithdrawalRequest(wr) {
+  const w = {
+    id: `wr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    user_id: wr.user_id,
+    full_name: wr.full_name,
+    account_number: wr.account_number,
+    bank_name: wr.bank_name,
+    amount: wr.amount,
+    status: 'pending',
+    created_at: new Date().toISOString(),
+  };
+  if (useMemory) {
+    memoryStore.withdrawalRequests.set(w.id, w);
+    return w;
+  }
+  await pool.query(
+    `INSERT INTO withdrawal_requests (id, user_id, full_name, account_number, bank_name, amount, status)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+    [w.id, w.user_id, w.full_name, w.account_number, w.bank_name, w.amount, w.status]
+  );
+  return w;
+}
+
+async function getWithdrawalRequest(id) {
+  if (useMemory) {
+    return memoryStore.withdrawalRequests.get(id) || null;
+  }
+  const res = await pool.query('SELECT * FROM withdrawal_requests WHERE id = $1', [id]);
+  return res.rows[0] || null;
+}
+
+async function getWithdrawalRequestsByUser(userId) {
+  if (useMemory) {
+    return [...memoryStore.withdrawalRequests.values()]
+      .filter(w => w.user_id === userId)
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+  const res = await pool.query('SELECT * FROM withdrawal_requests WHERE user_id = $1 ORDER BY created_at DESC', [userId]);
+  return res.rows;
+}
+
+async function getAllWithdrawalRequests(status) {
+  if (useMemory) {
+    const rows = [...memoryStore.withdrawalRequests.values()];
+    const filtered = status ? rows.filter(w => w.status === status) : rows;
+    return filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  }
+  const res = status
+    ? await pool.query('SELECT * FROM withdrawal_requests WHERE status = $1 ORDER BY created_at DESC', [status])
+    : await pool.query('SELECT * FROM withdrawal_requests ORDER BY created_at DESC');
+  return res.rows;
+}
+
+async function updateWithdrawalRequest(id, updates) {
+  if (useMemory) {
+    const w = memoryStore.withdrawalRequests.get(id);
+    if (!w) return null;
+    Object.assign(w, updates);
+    return w;
+  }
+  const keys = Object.keys(updates);
+  const values = Object.values(updates);
+  if (!keys.length) return null;
+  const setClause = keys.map((k, i) => `${k} = $${i + 2}`).join(', ');
+  const res = await pool.query(`UPDATE withdrawal_requests SET ${setClause} WHERE id = $1 RETURNING *`, [id, ...values]);
+  return res.rows[0] || null;
+}
+
 module.exports = {
   initDb,
   getOrCreateUser,
@@ -361,4 +441,9 @@ module.exports = {
   getTransactionByReference,
   updateTransaction,
   getTransactionsByUser,
+  createWithdrawalRequest,
+  getWithdrawalRequest,
+  getWithdrawalRequestsByUser,
+  getAllWithdrawalRequests,
+  updateWithdrawalRequest,
 };

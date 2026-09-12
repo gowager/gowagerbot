@@ -1057,24 +1057,10 @@ async function openWallet() {
     const wallet = await api(`/api/wallet/${currentUser.id}`);
     updateWallet(wallet.balance);
     loadTransactions();
-    loadBanks();
+    loadWithdrawalRequests();
     const emailInput = document.getElementById('wallet-email');
     const savedEmail = localStorage.getItem('gowager_email') || currentUser.email || '';
     if (savedEmail) emailInput.value = savedEmail;
-    if (currentUser.account_name) {
-      document.getElementById('bank-status').textContent = `Saved account: ${currentUser.account_name}`;
-    }
-  }
-}
-
-async function loadBanks() {
-  try {
-    const banks = await api('/api/paystack/banks');
-    const select = document.getElementById('withdraw-bank');
-    select.innerHTML = '<option value="">Select bank…</option>' +
-      banks.map(b => `<option value="${b.code}">${b.name}</option>`).join('');
-  } catch (err) {
-    // Paystack not configured yet — withdraw needs it; deposit UI still shows
   }
 }
 
@@ -1139,59 +1125,100 @@ async function handleDepositCallback() {
   }
 }
 
-async function saveWithdrawBank() {
-  const bank = document.getElementById('withdraw-bank').value;
-  const account = document.getElementById('withdraw-account').value.trim();
-  if (!bank) return showToast('Select a bank', 'error');
-  if (!/^\d{10}$/.test(account)) return showToast('Enter a valid 10-digit account number', 'error');
-  const btn = document.getElementById('save-bank-btn');
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-  try {
-    const data = await api('/api/paystack/recipient', {
-      method: 'POST',
-      body: JSON.stringify({ userId: currentUser.id, bankCode: bank, accountNumber: account }),
-    });
-    currentUser.recipient_code = data.recipient_code;
-    currentUser.account_name = data.account_name;
-    document.getElementById('bank-status').textContent = `Saved account: ${data.account_name}`;
-    showToast('Bank account saved!', 'success');
-  } catch (err) {
-    showToast(err.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Save Bank Account';
-  }
+const WITHDRAW_CANCEL_WINDOW_MS = 15 * 60 * 1000;
+
+function escHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
-async function withdraw() {
+async function requestWithdrawal() {
+  const fullName = document.getElementById('wdr-name').value.trim();
+  const bankName = document.getElementById('wdr-bank').value.trim();
+  const accountNumber = document.getElementById('wdr-account').value.trim();
   const amount = parseInt(document.getElementById('withdraw-amount').value);
-  if (!amount || amount < 1 || amount > 50) {
-    showToast('Enter a valid amount (1-50 NGN)', 'error');
-    return;
-  }
-  if (!currentUser.recipient_code) {
-    showToast('Save your bank account first', 'error');
-    return;
+  if (fullName.length < 3) return showToast('Enter the full name on the account', 'error');
+  if (bankName.length < 2) return showToast('Enter your bank name', 'error');
+  if (!/^\d{10,12}$/.test(accountNumber)) return showToast('Enter a valid account number', 'error');
+  if (!amount || amount < 100 || amount > 10000) {
+    return showToast('Amount must be 100–10,000 NGN', 'error');
   }
   const btn = document.getElementById('withdraw-btn');
   btn.disabled = true;
-  btn.textContent = 'Sending…';
+  btn.textContent = 'Submitting…';
   try {
-    const data = await api('/api/paystack/withdraw', {
+    const data = await api('/api/withdrawal-request', {
       method: 'POST',
-      body: JSON.stringify({ userId: currentUser.id, amount }),
+      body: JSON.stringify({ userId: currentUser.id, fullName, bankName, accountNumber, amount }),
     });
     updateWallet(data.wallet.balance);
-    if (data.otpRequired) showToast('Transfer submitted — needs OTP approval in Paystack', 'info');
-    else showToast('Withdrawal sent to your bank!', 'success');
+    showToast('Withdrawal request submitted! You have 15 minutes to cancel.', 'success');
+    loadWithdrawalRequests();
     loadTransactions();
+    ['wdr-name', 'wdr-bank', 'wdr-account', 'withdraw-amount'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
   } catch (err) {
     showToast(err.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Withdraw';
+    btn.textContent = 'Request Withdrawal';
   }
+}
+
+function cancelWindowMs(createdAt) {
+  return Math.max(0, WITHDRAW_CANCEL_WINDOW_MS - (Date.now() - new Date(createdAt).getTime()));
+}
+
+async function loadWithdrawalRequests() {
+  if (!currentUser) return;
+  try {
+    const reqs = await api(`/api/withdrawal-requests/${currentUser.id}`);
+    const container = document.getElementById('withdrawal-requests');
+    container.innerHTML = '<h3 style="font-size:15px;color:var(--tg-hint);margin-bottom:10px">My Withdrawal Requests</h3>';
+    if (reqs.length === 0) {
+      container.innerHTML += '<p style="color:var(--tg-hint);font-size:13px">No withdrawal requests yet</p>';
+      return;
+    }
+    const statusLabels = { pending: '⏳ Pending', processed: '✅ Processed', cancelled: '✖️ Cancelled', rejected: '↩️ Rejected' };
+    reqs.forEach(wr => {
+      const canCancel = wr.status === 'pending' && cancelWindowMs(wr.created_at) > 0;
+      const statusColor = wr.status === 'processed' ? '#4ade80' : wr.status === 'pending' ? '#facc15' : 'var(--tg-hint)';
+      container.innerHTML += `
+        <div class="wr-item">
+          <div class="wr-top">
+            <strong>${Number(wr.amount).toFixed(2)} NGN</strong>
+            <span class="wr-status" style="color:${statusColor}">${statusLabels[wr.status] || wr.status}</span>
+          </div>
+          <div class="wr-details">${escHtml(wr.full_name)} · ${escHtml(wr.bank_name)} · ${escHtml(wr.account_number)}</div>
+          <div class="wr-meta">${new Date(wr.created_at).toLocaleString()}</div>
+          ${canCancel ? `<button class="btn-secondary btn-sm" onclick="cancelWithdrawalRequest('${wr.id}')">Cancel Request</button>` : ''}
+        </div>
+      `;
+    });
+  } catch (err) {
+    console.error('Failed to load withdrawal requests:', err);
+  }
+}
+
+async function cancelWithdrawalRequest(id) {
+  showModal('Cancel withdrawal request?',
+    'Your balance will be refunded. You can only cancel within 15 minutes of the request.',
+    async () => {
+      try {
+        const data = await api(`/api/withdrawal-request/${id}/cancel`, {
+          method: 'POST',
+          body: JSON.stringify({ userId: currentUser.id }),
+        });
+        updateWallet(data.wallet.balance);
+        showToast('Request cancelled — balance refunded', 'success');
+        loadWithdrawalRequests();
+        loadTransactions();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    },
+    () => {});
 }
 
 async function loadTransactions() {
@@ -1211,7 +1238,7 @@ async function loadTransactions() {
         game_win: 'Game Win',
         game_refund: 'Game Refund',
         deposit: 'Deposit',
-        withdrawal: 'Withdrawal',
+        withdrawal_request: 'Withdrawal Request',
         withdrawal_refund: 'Withdrawal Refund',
         demo_credit: 'Demo Credit',
       };

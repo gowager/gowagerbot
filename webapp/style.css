@@ -822,3 +822,22 @@ p {
 .wz-cell.hit { background: #ffe3e3; border-color: #e74c3c; }
 .wz-cell.sunk { background: #ffd6d6; border-color: #c0392b; }
 .wz-cell.miss { background: #dcefff; border-color: #7fb3ff; }
+
+/* ===== Withdrawal requests + admin ===== */
+.wdr-note {
+  font-size: 13px;
+  color: #555;
+  background: #f1f3ff;
+  border-radius: 8px;
+  padding: 10px;
+  margin: 4px 0;
+}
+.withdrawal-requests { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.wr-item { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 10px; padding: 10px; }
+.wr-top { display: flex; justify-content: space-between; align-items: center; font-size: 15px; color: #333; }
+.wr-status { font-size: 13px; font-weight: 600; }
+.wr-details { font-size: 13px; color: #666; margin-top: 4px; }
+.wr-meta { font-size: 12px; color: #999; margin-top: 2px; }
+.wr-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.admin-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+#screen-admin h2 { text-align: center; }

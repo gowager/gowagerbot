@@ -1150,3 +1150,20 @@ h2 {
 #screen-wallet .tx-amount { font-weight: 600; }
 #screen-wallet .tx-amount.positive { color: #28a745; }
 #screen-wallet .tx-amount.negative { color: #dc3545; }
+
+/* ===== Withdrawal requests (wallet, webapp-style) ===== */
+#screen-wallet .wdr-note {
+  font-size: 13px;
+  color: #555;
+  background: #f1f3ff;
+  border-radius: 8px;
+  padding: 10px;
+  margin: 4px 0;
+}
+#screen-wallet .withdrawal-requests { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+#screen-wallet .wr-item { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 10px; padding: 10px; color: #333; }
+#screen-wallet .wr-top { display: flex; justify-content: space-between; align-items: center; font-size: 15px; color: #333; }
+#screen-wallet .wr-status { font-size: 13px; font-weight: 600; }
+#screen-wallet .wr-details { font-size: 13px; color: #666; margin-top: 4px; }
+#screen-wallet .wr-meta { font-size: 12px; color: #999; margin-top: 2px; }
+#screen-wallet .wr-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }

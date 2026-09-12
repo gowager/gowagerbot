@@ -587,162 +587,153 @@ app.get('/api/paystack/banks', async (req, res) => {
   }
 });
 
-// Resolve an account number and save a Paystack transfer recipient for payouts
-app.post('/api/paystack/recipient', async (req, res) => {
+// ---------- WITHDRAWAL REQUESTS (manual payout, admin-reviewed) ----------
+// Starter Paystack accounts cannot auto-transfer to third parties, so
+// withdrawals are requests the admin reviews and pays out manually.
+
+const WITHDRAW_MIN_NGN = 100;
+const WITHDRAW_MAX_NGN = 10000;
+const WITHDRAW_CANCEL_WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+
+function isAdmin(req, res, next) {
+  const expected = process.env.ADMIN_PASSCODE || 'gowager-admin';
+  if ((req.headers['x-admin-code'] || '') === expected) return next();
+  return res.status(403).json({ error: 'Unauthorized' });
+}
+
+// Create a withdrawal request (deducts the balance immediately)
+app.post('/api/withdrawal-request', async (req, res) => {
   if (!checkRateLimit(req.ip, 5)) return res.status(429).json({ error: 'Too many requests' });
-  if (!hasPaystack()) return res.status(503).json({ error: 'Paystack is not configured yet' });
-  const { userId, bankCode, accountNumber } = req.body;
-  if (!userId || !bankCode || !/^\d{10,12}$/.test(String(accountNumber || ''))) {
-    return res.status(400).json({ error: 'Enter a valid 10-digit account number' });
-  }
-  try {
-    const user = await db.getUserById(userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    // Test mode: Paystack limits real-bank resolution to 3/day and never pays
-    // real banks, so route every payout to the sandbox transfer sink
-    // (Zenith 057 — account 0000000000). Live mode stays fully real.
-    const isTest = String(process.env.PAYSTACK_SECRET_KEY || '').startsWith('sk_test_');
-
-    let recipientBankCode;
-    let recipientAccount;
-    let accountName;
-    if (isTest) {
-      recipientBankCode = '057';
-      recipientAccount = '0000000000';
-      accountName = 'Test Recipient';
-    } else {
-      recipientBankCode = String(bankCode);
-      recipientAccount = String(accountNumber);
-      accountName = 'Customer';
-      try {
-        const resolved = await paystack(`/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`);
-        accountName = resolved.data.account_name || accountName;
-      } catch (_) { /* resolution unavailable — proceed with default name */ }
-    }
-
-    const created = await paystack('/transferrecipient', {
-      method: 'POST',
-      body: {
-        type: 'nuban',
-        name: accountName,
-        account_number: recipientAccount,
-        bank_code: recipientBankCode,
-        currency: PAYSTACK_CURRENCY,
-      },
-    });
-
-    await db.updateUser(user.id, {
-      recipient_code: created.data.recipient_code,
-      account_name: accountName,
-    });
-
-    res.json({
-      success: true,
-      recipient_code: created.data.recipient_code,
-      account_name: accountName,
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Initiate a real bank payout from the user's wallet balance
-app.post('/api/paystack/withdraw', async (req, res) => {
-  if (!checkRateLimit(req.ip, 5)) return res.status(429).json({ error: 'Too many requests' });
-  if (!hasPaystack()) return res.status(503).json({ error: 'Paystack is not configured yet' });
-  const { userId, amount } = req.body;
+  const { userId, fullName, bankName, accountNumber, amount } = req.body;
   const num = Number(amount);
-  if (!userId || !Number.isInteger(num) || num < 1 || num > 50) {
-    return res.status(400).json({ error: 'Withdraw amount must be 1–50 NGN' });
+  if (!userId) return res.status(400).json({ error: 'User not found' });
+  if (String(fullName || '').trim().length < 3) return res.status(400).json({ error: 'Enter the full name on the account' });
+  if (String(bankName || '').trim().length < 2) return res.status(400).json({ error: 'Enter your bank name' });
+  if (!/^\d{10,12}$/.test(String(accountNumber || '').trim())) return res.status(400).json({ error: 'Enter a valid account number' });
+  if (!Number.isInteger(num) || num < WITHDRAW_MIN_NGN || num > WITHDRAW_MAX_NGN) {
+    return res.status(400).json({ error: `Withdrawal must be ${WITHDRAW_MIN_NGN}–${WITHDRAW_MAX_NGN} NGN per request` });
   }
   try {
-    const user = await db.getUserById(userId);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-    if (!user.recipient_code) {
-      return res.status(400).json({ error: 'Add your bank account first' });
-    }
-
     const wallet = await db.getWallet(userId);
     if (Number(wallet.balance) < num) return res.status(400).json({ error: 'Insufficient balance' });
 
-    const reference = paystackRef('gwg_wd', userId);
-
-    // Hold the funds then push the payout to Paystack
     await db.deductFunds(userId, num);
-    const pendingTx = await db.createTransaction({
+    const reqRow = await db.createWithdrawalRequest({
       user_id: userId,
-      type: 'withdrawal',
+      full_name: String(fullName).trim(),
+      bank_name: String(bankName).trim(),
+      account_number: String(accountNumber).trim(),
+      amount: num,
+    });
+    await db.createTransaction({
+      user_id: userId,
+      type: 'withdrawal_request',
       amount: num,
       status: 'pending',
-      paystack_reference: reference,
+      paystack_reference: reqRow.id,
     });
 
-    let transfer;
-    try {
-      transfer = await paystack('/transfer', {
-        method: 'POST',
-        body: {
-          source: 'balance',
-          amount: num * 100,
-          currency: PAYSTACK_CURRENCY,
-          recipient: user.recipient_code,
-          reason: 'GoWager wallet withdrawal',
-          reference,
-        },
-      });
-    } catch (err) {
-      // Transfer rejected (e.g. OTP required in live mode) — refund the hold
-      await db.addFunds(userId, num);
-      await db.updateTransaction(pendingTx.id, { status: 'failed' });
-      await db.createTransaction({
-        user_id: userId,
-        type: 'withdrawal_refund',
-        amount: num,
-        status: 'completed',
-        paystack_reference: reference,
-      });
-      return res.status(400).json({ error: err.message.includes('OTP') ? 'Transfer OTP is enabled. Disable it in Paystack to allow automatic payouts.' : err.message });
-    }
-
-    const transferCode = transfer.data.transfer_code || null;
-    await db.updateTransaction(pendingTx.id, {
-      status: transfer.data.status === 'success' ? 'completed' : 'pending',
-      transfer_code: transferCode,
-    });
-
-    res.json({
-      success: true,
-      reference,
-      transfer_code: transferCode,
-      status: transfer.data.status,
-      otpRequired: transfer.data.status === 'otp',
-      wallet: await db.getWallet(userId),
-    });
+    res.json({ success: true, request: reqRow, wallet: await db.getWallet(userId) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Poll transfer status (idempotent confirmation for the UI)
-app.get('/api/paystack/withdraw/:reference/status', async (req, res) => {
-  if (!checkRateLimit(req.ip, 10)) return res.status(429).json({ error: 'Too many requests' });
-  if (!hasPaystack()) return res.status(503).json({ error: 'Paystack is not configured yet' });
-  const reference = String(req.params.reference || '').trim();
-  if (!reference) return res.status(400).json({ error: 'Missing reference' });
+// Cancel a pending request within the 15-minute window (refunds the balance)
+app.post('/api/withdrawal-request/:id/cancel', async (req, res) => {
+  if (!checkRateLimit(req.ip, 5)) return res.status(429).json({ error: 'Too many requests' });
+  const { userId } = req.body;
   try {
-    let tx = await db.getTransactionByReference(reference);
-    if (!tx) return res.status(404).json({ error: 'Transaction not found' });
+    const wr = await db.getWithdrawalRequest(String(req.params.id));
+    if (!wr) return res.status(404).json({ error: 'Request not found' });
+    if (wr.user_id !== userId) return res.status(403).json({ error: 'Unauthorized' });
+    if (wr.status !== 'pending') return res.status(400).json({ error: 'This request can no longer be cancelled' });
 
-    const data = await paystack(`/transfer/verify/${reference}`);
-    const status = data.data.status;
+    const elapsed = Date.now() - new Date(wr.created_at).getTime();
+    if (elapsed > WITHDRAW_CANCEL_WINDOW_MS) return res.status(400).json({ error: 'The 15-minute cancellation window has passed' });
 
-    if (status === 'success' && tx.status !== 'completed') {
-      await db.updateTransaction(tx.id, { status: 'completed' });
-      tx = await db.getTransactionByReference(reference);
-    }
+    await db.addFunds(userId, Number(wr.amount));
+    await db.updateWithdrawalRequest(wr.id, { status: 'cancelled' });
+    const tx = await db.getTransactionByReference(wr.id);
+    if (tx) await db.updateTransaction(tx.id, { status: 'cancelled' });
+    await db.createTransaction({
+      user_id: userId,
+      type: 'withdrawal_refund',
+      amount: Number(wr.amount),
+      status: 'completed',
+      paystack_reference: wr.id,
+    });
 
-    res.json({ transaction: tx, status });
+    res.json({ success: true, wallet: await db.getWallet(userId) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// User's own withdrawal requests
+app.get('/api/withdrawal-requests/:userId', async (req, res) => {
+  if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
+  try {
+    res.json(await db.getWithdrawalRequestsByUser(req.params.userId));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ---------- ADMIN: review and process withdrawal requests ----------
+
+app.get('/api/admin/withdrawal-requests', isAdmin, async (req, res) => {
+  if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
+  try {
+    const status = req.query.status || '';
+    const rows = await db.getAllWithdrawalRequests(status || null);
+    const withUsers = await Promise.all(rows.map(async (r) => {
+      const user = await db.getUserById(r.user_id);
+      return { ...r, user: user ? { telegram_id: user.telegram_id, username: user.username, email: user.email || null } : null };
+    }));
+    res.json(withUsers);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin marks a request as paid out manually
+app.post('/api/admin/withdrawal-requests/:id/process', isAdmin, async (req, res) => {
+  try {
+    const wr = await db.getWithdrawalRequest(String(req.params.id));
+    if (!wr) return res.status(404).json({ error: 'Request not found' });
+    if (wr.status !== 'pending') return res.status(400).json({ error: 'Only pending requests can be processed' });
+
+    await db.updateWithdrawalRequest(wr.id, { status: 'processed' });
+    const tx = await db.getTransactionByReference(wr.id);
+    if (tx) await db.updateTransaction(tx.id, { status: 'completed' });
+
+    res.json({ success: true, request: await db.getWithdrawalRequest(wr.id) });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin rejects a request — refunds the held balance to the player
+app.post('/api/admin/withdrawal-requests/:id/reject', isAdmin, async (req, res) => {
+  try {
+    const wr = await db.getWithdrawalRequest(String(req.params.id));
+    if (!wr) return res.status(404).json({ error: 'Request not found' });
+    if (wr.status !== 'pending') return res.status(400).json({ error: 'Only pending requests can be rejected' });
+
+    await db.addFunds(wr.user_id, Number(wr.amount));
+    await db.updateWithdrawalRequest(wr.id, { status: 'rejected' });
+    const tx = await db.getTransactionByReference(wr.id);
+    if (tx) await db.updateTransaction(tx.id, { status: 'rejected' });
+    await db.createTransaction({
+      user_id: wr.user_id,
+      type: 'withdrawal_refund',
+      amount: Number(wr.amount),
+      status: 'completed',
+      paystack_reference: wr.id,
+    });
+
+    res.json({ success: true, wallet: await db.getWallet(wr.user_id) });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
