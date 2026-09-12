@@ -14,8 +14,20 @@ const io = new Server(server, {
 });
 
 app.use(cors());
+// Render (and other proxies) forward the real client IP via X-Forwarded-For
+app.set('trust proxy', 1);
 // Capture the raw request body for Paystack webhook signature verification
 app.use(express.json({ verify: (req, res, buf) => { req.rawBody = buf; } }));
+
+// Rate-limit key: prefer the authenticated user so 100 concurrent players
+// each get their own bucket instead of sharing one per proxy IP.
+app.use((req, res, next) => {
+  const body = req.body || {};
+  const uid = [body.userId, req.query.userId, req.params.userId, body.playerId, req.params.playerId]
+    .find(u => u !== undefined && u !== null && u !== '');
+  req._rlKey = uid !== undefined ? `u:${String(uid)}` : `ip:${req.ip || 'unknown'}`;
+  next();
+});
 
 // Serve the web app from the backend so http://localhost:3001/ works
 app.use(express.static(path.join(__dirname, '..', 'webapp')));
@@ -131,7 +143,7 @@ app.get('/api/health', (req, res) => {
 
 // Register / login user
 app.post('/api/users', async (req, res) => {
-  if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey)) return res.status(429).json({ error: 'Too many requests' });
   const { telegramId, username, tgUsername, email } = req.body;
   if (!telegramId || typeof telegramId !== 'string' || telegramId.length > 100) {
     return res.status(400).json({ error: 'Invalid telegram ID' });
@@ -147,7 +159,7 @@ app.post('/api/users', async (req, res) => {
 
 // Update a user's profile (email is required by Paystack)
 app.post('/api/users/:id', async (req, res) => {
-  if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey)) return res.status(429).json({ error: 'Too many requests' });
   const { email } = req.body;
   try {
     const user = await db.getUserById(req.params.id);
@@ -164,7 +176,7 @@ app.post('/api/users/:id', async (req, res) => {
 
 // Get user by telegram ID
 app.get('/api/users/:telegramId', async (req, res) => {
-  if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey)) return res.status(429).json({ error: 'Too many requests' });
   try {
     const user = await db.getUserByTelegramId(req.params.telegramId);
     if (!user) return res.status(404).json({ error: 'User not found' });
@@ -177,7 +189,7 @@ app.get('/api/users/:telegramId', async (req, res) => {
 
 // Get wallet
 app.get('/api/wallet/:userId', async (req, res) => {
-  if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey)) return res.status(429).json({ error: 'Too many requests' });
   try {
     const wallet = await db.getWallet(req.params.userId);
     res.json(wallet);
@@ -201,7 +213,7 @@ async function findUserByIdOrUsername(input) {
 
 // Create game
 app.post('/api/games', async (req, res) => {
-  if (!checkRateLimit(req.ip, 10)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey, 10)) return res.status(429).json({ error: 'Too many requests' });
   const { creatorId, opponentTelegramId, rounds, amountPerRound, roundSeconds, payoutStyle, resignRule, isFree, gameType, creatorRole } = req.body;
   const free = !!isFree;
   const type = gameType || 'rps';
@@ -280,7 +292,7 @@ app.post('/api/games', async (req, res) => {
 
 // Get game by room code
 app.get('/api/games/room/:roomCode', async (req, res) => {
-  if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey)) return res.status(429).json({ error: 'Too many requests' });
   try {
     const game = await db.getGameByRoomCode(req.params.roomCode.toUpperCase());
     if (!game) return res.status(404).json({ error: 'Game not found' });
@@ -292,7 +304,7 @@ app.get('/api/games/room/:roomCode', async (req, res) => {
 
 // Join game (second player deposits their full stake, unless free)
 app.post('/api/games/:roomCode/join', async (req, res) => {
-  if (!checkRateLimit(req.ip, 10)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey, 10)) return res.status(429).json({ error: 'Too many requests' });
   const { playerId } = req.body;
   try {
     const game = await db.getGameByRoomCode(req.params.roomCode.toUpperCase());
@@ -338,7 +350,7 @@ app.post('/api/games/:roomCode/join', async (req, res) => {
 // Demo only: credit a user's wallet with fake money for local testing.
 // Remove this endpoint in production.
 app.post('/api/demo/credit', async (req, res) => {
-  if (!checkRateLimit(req.ip, 5)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey, 5)) return res.status(429).json({ error: 'Too many requests' });
   const { userId, amount } = req.body;
   const n = Number(amount);
   if (!userId || !Number.isFinite(n) || n <= 0 || n > 5000) {
@@ -360,7 +372,7 @@ app.post('/api/demo/credit', async (req, res) => {
 
 // List a player's pending/ready (unplayed) games
 app.get('/api/games/player/:userId/pending', async (req, res) => {
-  if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey)) return res.status(429).json({ error: 'Too many requests' });
   try {
     const games = await db.getGamesByUserAndStatus(req.params.userId, ['pending', 'ready']);
     res.json(games);
@@ -371,7 +383,7 @@ app.get('/api/games/player/:userId/pending', async (req, res) => {
 
 // Creator deletes a pending/ready game. Stakes are refunded in full.
 app.post('/api/games/:id/cancel', async (req, res) => {
-  if (!checkRateLimit(req.ip, 10)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey, 10)) return res.status(429).json({ error: 'Too many requests' });
   const { playerId } = req.body;
   try {
     const game = await db.getGameById(req.params.id);
@@ -403,7 +415,7 @@ app.post('/api/games/:id/cancel', async (req, res) => {
 
 // Withdraw request
 app.post('/api/withdraw', async (req, res) => {
-  if (!checkRateLimit(req.ip, 5)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey, 5)) return res.status(429).json({ error: 'Too many requests' });
   const { userId, amount } = req.body;
   if (!validateAmount(amount)) return res.status(400).json({ error: 'Invalid amount' });
   try {
@@ -426,7 +438,7 @@ app.post('/api/withdraw', async (req, res) => {
 
 // Deposit funds (production: integrate with Paystack / Flutterwave / MoMo)
 app.post('/api/deposit', async (req, res) => {
-  if (!checkRateLimit(req.ip, 5)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey, 5)) return res.status(429).json({ error: 'Too many requests' });
   const { userId, amount } = req.body;
   const num = Number(amount);
   if (!userId || !Number.isFinite(num) || num < DEPOSIT_MIN_NGN || num > DEPOSIT_MAX_NGN || num % DEPOSIT_STEP_NGN !== 0) {
@@ -451,7 +463,7 @@ app.post('/api/deposit', async (req, res) => {
 // Create a Paystack checkout session for a wallet top-up.
 // Returns the hosted authorization_url the user is redirected to.
 app.post('/api/paystack/initialize', async (req, res) => {
-  if (!checkRateLimit(req.ip, 5)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey, 5)) return res.status(429).json({ error: 'Too many requests' });
   if (!hasPaystack()) return res.status(503).json({ error: 'Paystack is not configured yet' });
   const { userId, amount, email, callbackUrl } = req.body;
   const num = Number(amount);
@@ -507,7 +519,7 @@ app.post('/api/paystack/initialize', async (req, res) => {
 // Confirm a deposit after the user returns from Paystack checkout.
 // Credits the wallet exactly once per reference.
 app.get('/api/paystack/verify/:reference', async (req, res) => {
-  if (!checkRateLimit(req.ip, 10)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey, 10)) return res.status(429).json({ error: 'Too many requests' });
   if (!hasPaystack()) return res.status(503).json({ error: 'Paystack is not configured yet' });
   const reference = String(req.params.reference || '').trim();
   if (!reference) return res.status(400).json({ error: 'Missing reference' });
@@ -584,7 +596,7 @@ app.post('/api/paystack/webhook', async (req, res) => {
 
 // List Ghana banks for the withdrawal form
 app.get('/api/paystack/banks', async (req, res) => {
-  if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey)) return res.status(429).json({ error: 'Too many requests' });
   if (!hasPaystack()) return res.status(503).json({ error: 'Paystack is not configured yet' });
   try {
     const data = await paystack(`/bank?currency=${PAYSTACK_CURRENCY}&perPage=100`);
@@ -610,7 +622,7 @@ function isAdmin(req, res, next) {
 
 // Create a withdrawal request (deducts the balance immediately)
 app.post('/api/withdrawal-request', async (req, res) => {
-  if (!checkRateLimit(req.ip, 5)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey, 5)) return res.status(429).json({ error: 'Too many requests' });
   const { userId, fullName, bankName, accountNumber, amount } = req.body;
   const num = Number(amount);
   if (!userId) return res.status(400).json({ error: 'User not found' });
@@ -648,7 +660,7 @@ app.post('/api/withdrawal-request', async (req, res) => {
 
 // Cancel a pending request within the 15-minute window (refunds the balance)
 app.post('/api/withdrawal-request/:id/cancel', async (req, res) => {
-  if (!checkRateLimit(req.ip, 5)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey, 5)) return res.status(429).json({ error: 'Too many requests' });
   const { userId } = req.body;
   try {
     const wr = await db.getWithdrawalRequest(String(req.params.id));
@@ -679,7 +691,7 @@ app.post('/api/withdrawal-request/:id/cancel', async (req, res) => {
 
 // User's own withdrawal requests
 app.get('/api/withdrawal-requests/:userId', async (req, res) => {
-  if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey)) return res.status(429).json({ error: 'Too many requests' });
   try {
     res.json(await db.getWithdrawalRequestsByUser(req.params.userId));
   } catch (err) {
@@ -690,7 +702,7 @@ app.get('/api/withdrawal-requests/:userId', async (req, res) => {
 // ---------- ADMIN: review and process withdrawal requests ----------
 
 app.get('/api/admin/withdrawal-requests', isAdmin, async (req, res) => {
-  if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey)) return res.status(429).json({ error: 'Too many requests' });
   try {
     const status = req.query.status || '';
     let rows;
@@ -754,7 +766,7 @@ app.post('/api/admin/withdrawal-requests/:id/reject', isAdmin, async (req, res) 
 
 // Get transactions
 app.get('/api/transactions/:userId', async (req, res) => {
-  if (!checkRateLimit(req.ip)) return res.status(429).json({ error: 'Too many requests' });
+  if (!checkRateLimit(req._rlKey)) return res.status(429).json({ error: 'Too many requests' });
   try {
     const txs = await db.getTransactionsByUser(req.params.userId);
     res.json(txs);
