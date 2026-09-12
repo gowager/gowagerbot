@@ -561,6 +561,7 @@ p {
   padding: 16px;
   border-radius: 14px;
   font-weight: 600;
+  font-size: 16px;
   min-height: 50px;
   display: flex;
   align-items: center;

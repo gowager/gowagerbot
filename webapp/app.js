@@ -955,17 +955,27 @@ socket.on('round_result', (data) => {
   updateOpponentHint();
 
   const cap = s => s.charAt(0).toUpperCase() + s.slice(1);
+  const CHOICE_EMOJI = { rock: '✊', paper: '✋', scissors: '✂️' };
+  const WHY = {
+    'rock-scissors': 'Rock crushes Scissors',
+    'scissors-paper': 'Scissors cuts Paper',
+    'paper-rock': 'Paper covers Rock',
+  };
   const myChoiceMade = isCreator ? data.creatorChoice : data.opponentChoice;
   const oppChoiceMade = isCreator ? data.opponentChoice : data.creatorChoice;
+  const myEmoji = CHOICE_EMOJI[myChoiceMade] || '';
+  const oppEmoji = CHOICE_EMOJI[oppChoiceMade] || '';
   if (data.roundWinner === 'tie') {
-    resultEl.textContent = `You chose ${cap(myChoiceMade)}, opponent chose ${cap(oppChoiceMade)} — It's a tie!`;
+    resultEl.textContent = `You both chose ${myEmoji} ${cap(myChoiceMade)} — It's a tie!`;
     resultEl.className = 'round-result tie';
   } else if (data.roundWinner === myId) {
-    resultEl.textContent = `You chose ${cap(myChoiceMade)}, opponent chose ${cap(oppChoiceMade)} — You win! 🎉`;
+    const why = WHY[`${myChoiceMade}-${oppChoiceMade}`];
+    resultEl.textContent = `You chose ${myEmoji} ${cap(myChoiceMade)}, opponent chose ${oppEmoji} ${cap(oppChoiceMade)} — ${why ? why + '. ' : ''}You win! 🎉`;
     resultEl.className = 'round-result win';
     bumpScore('my-score');
   } else {
-    resultEl.textContent = `You chose ${cap(myChoiceMade)}, opponent chose ${cap(oppChoiceMade)} — You lose!`;
+    const why = WHY[`${oppChoiceMade}-${myChoiceMade}`];
+    resultEl.textContent = `You chose ${myEmoji} ${cap(myChoiceMade)}, opponent chose ${oppEmoji} ${cap(oppChoiceMade)} — ${why ? why + '. ' : ''}You lose!`;
     resultEl.className = 'round-result lose';
     bumpScore('opp-score');
   }
