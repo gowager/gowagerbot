@@ -16,17 +16,17 @@
         <h1>GoWager</h1>
         <p class="tagline">Wager with friends. Play. Win.</p>
       </div>
+      <div class="wallet-chip" onclick="openWallet()">
+        <span>💰</span>
+        <span id="wallet-balance">0.00</span>
+        <span>NGN</span>
+      </div>
       <div class="actions">
         <button class="btn-free" onclick="startFreePlay()">🎉 Play Free with Friends</button>
         <button class="btn-primary" onclick="isFreeMode=false;showScreen('screen-games')">Wager with Friends</button>
         <button class="btn-outline" id="pending-games-btn" onclick="openPendingGames()" disabled>👥 Pending Games</button>
         <button class="btn-outline" onclick="showScreen('screen-howto')">How To Use App</button>
         <button class="btn-outline" onclick="openWallet()">💰 Wallet</button>
-      </div>
-      <div class="wallet-chip" onclick="openWallet()">
-        <span>💰</span>
-        <span id="wallet-balance">0.00</span>
-        <span>NGN</span>
       </div>
     </div>
 
