@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>GoWager</title>
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=5">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -216,24 +216,24 @@
       <div class="header">
         <h2>War Zone 🚀</h2>
       </div>
-      <div class="lobby-row"><span>Phase</span><strong id="wz-phase-label">Placing rockets</strong></div>
-      <div class="lobby-row"><span>Score (You - Opp)</span><strong><span id="wz-my-hits">0</span> - <span id="wz-opp-hits">0</span></strong></div>
       <div id="wz-timer-box" style="text-align:center;margin:10px 0;">
         <strong>⏱ <span id="wz-timer">30</span>s left to place your rockets</strong>
         <p class="hint" id="wz-place-count">0 / 4 placed</p>
+      </div>
+      <p id="wz-move-timer" style="text-align:center;font-weight:700;color:#ff6b6b;display:none;"></p>
+      <p id="wz-status" style="text-align:center;"></p>
+      <div id="wz-result-msg" style="text-align:center;font-weight:700;min-height:24px;margin:10px 0;"></div>
+      <div class="lobby-row"><span>Phase</span><strong id="wz-phase-label">Placing rockets</strong></div>
+      <div class="lobby-row"><span>Score (You - Opp)</span><strong><span id="wz-my-hits">0</span> - <span id="wz-opp-hits">0</span></strong></div>
+      <div id="wz-enemy-section" style="display:none;">
+        <h3 style="text-align:center;">Enemy Waters</h3>
+        <div id="wz-enemy-grid" class="wz-grid"></div>
       </div>
       <h3 style="text-align:center;">Your Fleet</h3>
       <div id="wz-my-grid" class="wz-grid"></div>
       <div id="wz-confirm-box" style="text-align:center;">
         <button class="btn-primary" id="wz-confirm-btn" onclick="wzConfirm()" disabled>Confirm Positions</button>
       </div>
-      <div id="wz-enemy-section" style="display:none;">
-        <h3 style="text-align:center;">Enemy Waters</h3>
-        <div id="wz-enemy-grid" class="wz-grid"></div>
-      </div>
-      <div id="wz-result-msg" style="text-align:center;font-weight:700;min-height:24px;margin:10px 0;"></div>
-      <p id="wz-status" style="text-align:center;"></p>
-      <p id="wz-move-timer" style="text-align:center;font-weight:700;color:#ff6b6b;display:none;"></p>
     </div>
 
     <!-- Create Game -->
@@ -538,6 +538,6 @@
   </div>
 
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-  <script src="app.js?v=4"></script>
+  <script src="app.js?v=5"></script>
 </body>
 </html>
