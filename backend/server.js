@@ -236,7 +236,13 @@ app.post('/api/games', async (req, res) => {
     if (!validateRounds(rounds)) return res.status(400).json({ error: 'Rounds must be 1-25' });
     if (!free && !validateAmount(amountPerRound)) return res.status(400).json({ error: `Amount must be ${GAME_MIN_NGN}-${GAME_MAX_NGN} NGN, in multiples of ${GAME_STEP_NGN}` });
   }
-  if (!free && !validateRoundSeconds(roundSeconds)) return res.status(400).json({ error: 'Round seconds must be 30, 45, or 60' });
+  if (!free) {
+    if (type === 'warzone') {
+      if (![15, 20, 30].includes(Number(roundSeconds))) return res.status(400).json({ error: 'Move time must be 15, 20, or 30 seconds' });
+    } else if (!validateRoundSeconds(roundSeconds)) {
+      return res.status(400).json({ error: 'Round seconds must be 30, 45, or 60' });
+    }
+  }
   if (!validatePayoutStyle(payoutStyle)) return res.status(400).json({ error: 'Invalid payout style' });
   if (!validateResignRule(resignRule)) return res.status(400).json({ error: 'Invalid resign rule' });
 
@@ -279,7 +285,7 @@ app.post('/api/games', async (req, res) => {
       creator_role: type === 'redblack' ? creatorRole : null,
       rounds: isWarzone ? 1 : Number(rounds),
       amount_per_round: free ? 0 : Number(amountPerRound),
-      round_seconds: isWarzone ? 30 : Number(roundSeconds),
+      round_seconds: Number(roundSeconds) || 30,
       payout_style: type === 'redblack' || isWarzone ? 'winner_takes_all' : payoutStyle,
       resign_rule: type === 'redblack' || isWarzone ? 'full_pot' : resignRule,
       resign_definition: '2_games_in_a_row',
