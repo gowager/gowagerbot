@@ -842,7 +842,7 @@ socket.on('game_state', (data) => {
     if (data.game.game_type === 'redblack') {
       rbRoleIsDealer = rbAmIDealer(data.game);
       document.getElementById('rb-role-label').textContent = rbRoleIsDealer ? 'You are the Dealer 🎩' : 'You are the Player 🎯';
-      document.getElementById('rb-total').textContent = data.game.rounds;
+document.getElementById('rb-round-display').textContent = '1/' + data.game.rounds;
       showScreen('screen-play-rb');
     } else {
       showScreen('screen-play');
@@ -873,8 +873,7 @@ socket.on('game_started', (data) => {
     document.getElementById('rb-role-label').textContent = rbRoleIsDealer ? 'You are the Dealer 🎩' : 'You are the Player 🎯';
     document.getElementById('rb-my-score').textContent = 0;
     document.getElementById('rb-opp-score').textContent = 0;
-    document.getElementById('rb-round').textContent = 1;
-    document.getElementById('rb-total').textContent = data.game.rounds;
+    document.getElementById('rb-round-display').textContent = '1/' + data.game.rounds;
     document.getElementById('rb-result').textContent = '';
     document.getElementById('rb-hand').innerHTML = '';
     document.getElementById('rb-card-area').innerHTML = '<div class="rb-card-face-down">🂠</div>';
@@ -895,8 +894,7 @@ socket.on('game_started', (data) => {
 // ---------- RED OR BLACK SOCKET EVENTS ----------
 
 socket.on('rb_round_started', (data) => {
-  document.getElementById('rb-round').textContent = data.round;
-  document.getElementById('rb-total').textContent = data.totalCards;
+  document.getElementById('rb-round-display').textContent = data.round + '/' + data.totalCards;
   document.getElementById('rb-result').textContent = '';
   document.getElementById('rb-card-area').innerHTML = '<div class="rb-card-face-down">🂠</div>';
   document.getElementById('rb-status').textContent = rbRoleIsDealer ? 'Pick a card to play' : 'Dealer is picking a card...';
