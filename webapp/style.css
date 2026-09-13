@@ -462,6 +462,46 @@ p {
   gap: 10px;
 }
 
+.stats-row {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.stats-row .stat {
+  flex: 1;
+  text-align: center;
+  background: #f8f9fa;
+  padding: 12px 0;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  animation: staggerIn 0.4s cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.stats-row .stat span {
+  display: block;
+  font-size: 13px;
+  color: #777;
+  margin-bottom: 2px;
+}
+
+.stats-row .stat strong {
+  font-size: 22px;
+  color: #1a6e3a;
+  white-space: nowrap;
+}
+
+.stats-row .stat.center {
+  border-left: 2px solid #e2e8f0;
+  border-right: 2px solid #e2e8f0;
+}
+
+.stats-row .stat strong.bump {
+  display: inline-block;
+  animation: popIn 0.25s cubic-bezier(0.2, 0, 0, 1);
+}
+
 .score-box {
   display: flex;
   justify-content: space-around;

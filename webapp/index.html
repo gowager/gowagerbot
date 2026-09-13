@@ -283,14 +283,10 @@
     <div id="screen-play-rb" class="screen">
       <h2>Red or Black</h2>
       <p class="subtitle" id="rb-role-label"></p>
-      <div class="game-info">
-        <div class="score-box">
-          <span>You: <strong id="rb-my-score">0</strong></span>
-          <span>Opponent: <strong id="rb-opp-score">0</strong></span>
-        </div>
-        <div class="round-info">
-          <span>Card: <strong id="rb-round-display">1/5</strong></span>
-        </div>
+      <div class="stats-row">
+        <div class="stat"><span>You</span><strong id="rb-my-score">0</strong></div>
+        <div class="stat center"><span>Card</span><strong id="rb-round-display">1/5</strong></div>
+        <div class="stat"><span>Opponent</span><strong id="rb-opp-score">0</strong></div>
       </div>
       <div id="rb-card-area" style="display:flex;justify-content:center;margin:14px 0;">
         <div class="rb-card-face-down">🂠</div>
