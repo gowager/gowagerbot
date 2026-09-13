@@ -178,6 +178,7 @@ const WZ_CELL_IDS = [
 ];
 let wzMyCells = new Set();
 let wzPlaced = false;
+let wzSubmitted = false;
 let wzBattle = false;
 let wzMyTurn = false;
 let wzTimerInt = null;
@@ -231,6 +232,7 @@ function wzResetLocal() {
   clearInterval(wzTimerInt);
   wzMyCells = new Set();
   wzPlaced = false;
+  wzSubmitted = false;
   wzBattle = false;
   wzMyTurn = false;
   wzEnemyMarks = new Map();
@@ -290,16 +292,16 @@ function wzStartPlacementCountdown(seconds) {
   wzTimerInt = setInterval(() => {
     left -= 1;
     label.textContent = Math.max(left, 0);
-    if (left <= 0) {
-      clearInterval(wzTimerInt);
-      // Lock in whatever was placed; the server randomly fills the rest
-      if (!wzPlaced && wzMyCells.size >= 1) wzConfirm();
-    }
+    // Lock in partial picks a couple of seconds BEFORE the server's own timer
+    // fires, so the server receives them in time and keeps them.
+    if (left === 2 && !wzPlaced && !wzSubmitted && wzMyCells.size >= 1) wzConfirm();
+    if (left <= 0) clearInterval(wzTimerInt);
   }, 1000);
 }
 
 function wzConfirm() {
-  if (wzPlaced || wzMyCells.size < 1) return;
+  if (wzPlaced || wzSubmitted || wzMyCells.size < 1) return;
+  wzSubmitted = true;
   socket.emit('wz_place', { gameId: currentGame.id, cells: [...wzMyCells] });
 }
 
