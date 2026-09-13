@@ -241,6 +241,12 @@ function rbAmIDealer(game) {
 // ---------- WAR ZONE ----------
 
 const WZ_EMOJI = '🚀';
+const WZ_CELL_IDS = [
+  'A1', 'A2', 'A3', 'A4',
+  'B1', 'B2', 'B3', 'B4',
+  'C1', 'C2', 'C3', 'C4',
+  'D1', 'D2', 'D3', 'D4',
+];
 let wzMyCells = new Set();
 let wzPlaced = false;
 let wzBattle = false;
@@ -315,17 +321,32 @@ function wzRenderPlacementGrid() {
   const grid = document.getElementById('wz-my-grid');
   grid.innerHTML = '';
   for (let i = 0; i < 16; i++) {
+    const id = WZ_CELL_IDS[i];
+    const placed = wzMyCells.has(id);
     const cell = document.createElement('button');
-    cell.className = 'wz-cell' + (wzMyCells.has(i) ? ' mine' : '');
-    cell.textContent = wzMyCells.has(i) ? WZ_EMOJI : '·';
+    cell.dataset.id = id;
+    cell.className = 'wz-cell' + (placed ? ' mine' : '');
+    cell.innerHTML = `<span class="wz-cell-id">${id}</span><span class="wz-cell-face">${placed ? WZ_EMOJI : ''}</span>`;
     cell.onclick = () => {
       if (wzPlaced || wzBattle) return;
-      if (wzMyCells.has(i)) wzMyCells.delete(i);
-      else if (wzMyCells.size < 4) wzMyCells.add(i);
-      wzRenderPlacementGrid();
+      wzToggleCell(id);
       if (tg) tg.HapticFeedback?.selectionChanged();
     };
     grid.appendChild(cell);
+  }
+  document.getElementById('wz-place-count').textContent = `${wzMyCells.size} / 4 placed`;
+  document.getElementById('wz-confirm-btn').disabled = wzMyCells.size !== 4;
+}
+
+function wzToggleCell(id) {
+  if (wzPlaced || wzBattle) return;
+  if (wzMyCells.has(id)) wzMyCells.delete(id);
+  else if (wzMyCells.size < 4) wzMyCells.add(id);
+  const cell = document.querySelector(`#wz-my-grid [data-id="${id}"]`);
+  if (cell) {
+    cell.classList.toggle('mine', wzMyCells.has(id));
+    const face = cell.querySelector('.wz-cell-face');
+    if (face) face.textContent = wzMyCells.has(id) ? WZ_EMOJI : '';
   }
   document.getElementById('wz-place-count').textContent = `${wzMyCells.size} / 4 placed`;
   document.getElementById('wz-confirm-btn').disabled = wzMyCells.size !== 4;
@@ -373,9 +394,12 @@ socket.on('wz_battle_started', (data) => {
   const grid = document.getElementById('wz-my-grid');
   grid.innerHTML = '';
   for (let i = 0; i < 16; i++) {
+    const id = WZ_CELL_IDS[i];
+    const placed = wzMyCells.has(id);
     const cell = document.createElement('div');
-    cell.className = 'wz-cell' + (wzMyCells.has(i) ? ' mine' : '');
-    cell.textContent = wzMyCells.has(i) ? WZ_EMOJI : '·';
+    cell.dataset.id = id;
+    cell.className = 'wz-cell' + (placed ? ' mine' : '');
+    cell.innerHTML = `<span class="wz-cell-id">${id}</span><span class="wz-cell-face">${placed ? WZ_EMOJI : ''}</span>`;
     grid.appendChild(cell);
   }
   wzEnemyMarks = new Map();
@@ -389,17 +413,18 @@ function wzRenderEnemyGrid() {
   const grid = document.getElementById('wz-enemy-grid');
   grid.innerHTML = '';
   for (let i = 0; i < 16; i++) {
-    const marked = wzEnemyMarks.get(i);
+    const id = WZ_CELL_IDS[i];
+    const marked = wzEnemyMarks.get(id);
     const cell = document.createElement('button');
+    cell.dataset.id = id;
     cell.className = 'wz-cell' + (marked ? ` ${marked.cls}` : '');
-    cell.textContent = marked ? marked.txt : '·';
+    cell.innerHTML = `<span class="wz-cell-id">${id}</span><span class="wz-cell-face">${marked ? marked.txt : ''}</span>`;
     cell.disabled = !wzMyTurn || !!marked;
     cell.onclick = () => {
-      if (!wzMyTurn || wzEnemyMarks.has(i)) return;
+      if (!wzMyTurn || wzEnemyMarks.has(id)) return;
       wzMyTurn = false;
       cell.disabled = true;
-      cell.textContent = '·';
-      socket.emit('wz_guess', { gameId: currentGame.id, cell: i });
+      socket.emit('wz_guess', { gameId: currentGame.id, cell: id });
       wzUpdateBattleStatus();
       if (tg) tg.HapticFeedback?.impactOccurred('medium');
     };
@@ -433,8 +458,13 @@ socket.on('wz_result', (data) => {
     wzEnemyMarks.set(data.cell, data.hit ? { cls: 'hit', txt: '🔥' } : { cls: 'miss', txt: '❌' });
     msg.textContent = data.hit ? '💥 HIT! Enemy rocket found!' : '💧 Miss — splash!';
   } else if (data.hit && wzMyCells.has(data.cell)) {
-    const c = document.getElementById('wz-my-grid').children[data.cell];
-    if (c) { c.classList.add('sunk'); c.textContent = '💥'; }
+    const c = document.querySelector(`#wz-my-grid [data-id="${data.cell}"]`);
+    if (c) {
+      c.classList.add('sunk');
+      const face = c.querySelector('.wz-cell-face');
+      if (face) face.textContent = '💥';
+      else c.textContent = '💥';
+    }
     msg.textContent = '😱 Your rocket was hit!';
   } else {
     msg.textContent = '😌 Opponent missed your waters.';

@@ -902,8 +902,8 @@ io.on('connection', (socket) => {
             turn: state.wz.turn,
             creatorHits: state.wz.creatorHits,
             opponentHits: state.wz.opponentHits,
-            yourGuesses: isCreator ? [...state.wz.creatorGuesses] : [...state.wz.opponentGuesses],
-            incomingShots: isCreator ? [...state.wz.opponentGuesses] : [...state.wz.creatorGuesses],
+            yourGuesses: isCreator ? [...state.wz.creatorGuesses].map(cellId) : [...state.wz.opponentGuesses].map(cellId),
+            incomingShots: isCreator ? [...state.wz.opponentGuesses].map(cellId) : [...state.wz.creatorGuesses].map(cellId),
           });
         }
       }
@@ -1049,9 +1049,13 @@ io.on('connection', (socket) => {
       if (userId !== game.creator_id && userId !== game.opponent_id) return socket.emit('error', { message: 'You are not part of this game' });
 
       if (!Array.isArray(cells) || cells.length !== WZ_TARGETS) return socket.emit('error', { message: 'Place exactly 4 rockets' });
-      const set = new Set(cells.map(Number));
-      const valid = set.size === WZ_TARGETS && [...set].every(c => Number.isInteger(c) && c >= 0 && c < WZ_SIZE);
-      if (!valid) return socket.emit('error', { message: 'Invalid positions' });
+      const ids = cells.map((c) => {
+        const idx = cellIndex(c);
+        return idx === null ? null : cellId(idx);
+      });
+      if (ids.includes(null)) return socket.emit('error', { message: 'Invalid positions' });
+      const set = new Set(ids);
+      if (set.size !== WZ_TARGETS) return socket.emit('error', { message: 'Invalid or duplicate positions' });
 
       if (userId === game.creator_id) {
         if (state.wz.creatorCells) return socket.emit('error', { message: 'Positions already locked' });
@@ -1079,14 +1083,14 @@ io.on('connection', (socket) => {
       if (!isCreator && userId !== game.opponent_id) return socket.emit('error', { message: 'You are not part of this game' });
       if ((state.wz.turn === 'creator') !== isCreator) return socket.emit('error', { message: 'Not your turn' });
 
-      const idx = Number(cell);
-      if (!Number.isInteger(idx) || idx < 0 || idx >= WZ_SIZE) return socket.emit('error', { message: 'Invalid box' });
+      const idx = cellIndex(cell);
+      if (idx === null) return socket.emit('error', { message: 'Invalid box' });
       const myGuesses = isCreator ? state.wz.creatorGuesses : state.wz.opponentGuesses;
       if (myGuesses.has(idx)) return socket.emit('error', { message: 'Already guessed that box' });
       myGuesses.add(idx);
 
       const targetCells = isCreator ? state.wz.opponentCells : state.wz.creatorCells;
-      const hit = targetCells.includes(idx);
+      const hit = targetCells.includes(cellId(idx));
       if (isCreator) { if (hit) state.wz.creatorHits += 1; }
       else if (hit) state.wz.opponentHits += 1;
 
@@ -1099,7 +1103,7 @@ io.on('connection', (socket) => {
       state.game = updated;
 
       io.to(`game_${gameId}`).emit('wz_result', {
-        cell: idx,
+        cell: cellId(idx),
         hit,
         byCreator: isCreator,
         creatorHits: state.wz.creatorHits,
@@ -1275,10 +1279,32 @@ const WZ_SIZE = 16;
 const WZ_TARGETS = 4;
 const WZ_PLACE_SECONDS = 30;
 
+// Unique box identifiers: row A-D, column 1-4 (A1..D4)
+const WZ_CELL_IDS = [
+  'A1', 'A2', 'A3', 'A4',
+  'B1', 'B2', 'B3', 'B4',
+  'C1', 'C2', 'C3', 'C4',
+  'D1', 'D2', 'D3', 'D4',
+];
+
+// Maps a box id OR a legacy 0-15 index to a numeric index (null if invalid)
+function cellIndex(id) {
+  if (typeof id === 'string') {
+    const i = WZ_CELL_IDS.indexOf(id.trim().toUpperCase());
+    if (i !== -1) return i;
+  }
+  const n = Number(id);
+  return Number.isInteger(n) && n >= 0 && n < WZ_SIZE ? n : null;
+}
+
+function cellId(index) {
+  return WZ_CELL_IDS[index] || null;
+}
+
 function wzAutoPlace() {
   const cells = new Set();
   while (cells.size < WZ_TARGETS) cells.add(crypto.randomInt(WZ_SIZE));
-  return [...cells];
+  return [...cells].map(cellId);
 }
 
 function startWarZone(state) {
