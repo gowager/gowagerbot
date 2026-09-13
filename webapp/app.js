@@ -895,6 +895,10 @@ socket.on('game_opponent_updated', (data) => {
   }
 });
 
+socket.on('opponent_absence', (data) => {
+  showToast(`Opponent disconnected. They have ${data.minutes} minutes to rejoin, or the game settles with current results.`, 'info');
+});
+
 socket.on('game_started', (data) => {
   currentGame = data.game;
   myChoice = null;
@@ -1051,6 +1055,11 @@ socket.on('game_over', (data) => {
   const myId = currentUser.id;
   const isWinner = data.winnerId === myId;
   const isFree = data.isFree || currentGame?.is_free;
+  const reasonText =
+    data.reason === 'resignation' ? 'Opponent resigned' :
+    data.reason === 'auto_resign_timeout' ? 'Opponent timed out' :
+    data.reason === 'abandoned' ? 'Opponent never returned — settled by current score' :
+    'Game completed';
 
   if (isFree) {
     if (data.tie) {
@@ -1062,7 +1071,7 @@ socket.on('game_over', (data) => {
       content.innerHTML = `
         <div class="winner">You Won! 🏆</div>
         <p>Bragging rights earned! No money involved. 🎉</p>
-        <p>${data.reason === 'resignation' ? 'Opponent resigned' : data.reason === 'auto_resign_timeout' ? 'Opponent timed out' : 'Game completed'}</p>
+<p>${reasonText}</p>
       `;
     } else {
       content.innerHTML = `

@@ -96,6 +96,8 @@ function checkRateLimit(key, max = 20, windowMs = 60000) {
 const GAME_MIN_NGN = 50;
 const GAME_MAX_NGN = 500;
 const GAME_STEP_NGN = 10;
+const ABSENCE_MINUTES = 15;
+const ABSENCE_MS = ABSENCE_MINUTES * 60 * 1000;
 const DEPOSIT_MIN_NGN = 100;
 const DEPOSIT_MAX_NGN = 5000;
 const DEPOSIT_STEP_NGN = 50;
@@ -798,6 +800,38 @@ app.get('/api/transactions/:userId', async (req, res) => {
   }
 });
 
+// ---------- ABSENCE / ANTI-DODGE ----------
+// If a round never progresses because a player disconnected, we give
+// everyone a window to reconnect. When the window lapses and the game is
+// still in progress, we settle it by the CURRENT scoreboard + payout rules
+// (winner_takes_all -> leader takes the full pot; winner_per_game -> per-round
+// wins are paid and unplayed rounds refunded). Refreshing to void the game
+// no longer works.
+
+function cancelAbsenceTimer(state) {
+  if (state.absenceTimer) {
+    clearTimeout(state.absenceTimer);
+    state.absenceTimer = null;
+  }
+}
+
+function scheduleAbsenceSettlement(state) {
+  cancelAbsenceTimer(state);
+  const game = state.game;
+  if (!game || game.status !== 'in_progress') return;
+  state.absenceTimer = setTimeout(async () => {
+    state.absenceTimer = null;
+    try {
+      const fresh = await db.getGameById(game.id);
+      if (!fresh || fresh.status !== 'in_progress') return;
+      state.game = fresh;
+      await settleGame(state, { reason: 'abandoned' });
+    } catch (err) {
+      console.error('Absence settlement failed:', err.message);
+    }
+  }, ABSENCE_MS);
+}
+
 // ---------- SOCKET.IO REAL-TIME GAME ----------
 
 io.on('connection', (socket) => {
@@ -832,6 +866,15 @@ io.on('connection', (socket) => {
 
       if (game.creator_id === userId) state.creatorSocket = socket.id;
       if (game.opponent_id === userId) state.opponentSocket = socket.id;
+
+      // Someone reconnected: cancel the pending absence window, and re-arm it
+      // if anyone is still missing. If the round timer was paused because of a
+      // disconnect, restart it so the round can resume.
+      cancelAbsenceTimer(state);
+      if (state.game.status === 'in_progress') {
+        scheduleAbsenceSettlement(state);
+        if (state.game.game_type === 'rps' && !state.roundTimer) startRoundTimer(state);
+      }
 
       // Send current game state to the joining player
       socket.emit('game_state', { game: state.game, round: state.game.current_round, deadline: state.roundDeadline });
@@ -1067,6 +1110,7 @@ io.on('connection', (socket) => {
         settleGame(state, { reason: 'completed' });
       } else {
         state.wz.turn = isCreator ? 'opponent' : 'creator';
+        scheduleAbsenceSettlement(state);
         io.to(`game_${gameId}`).emit('wz_turn', { turn: state.wz.turn });
       }
     } catch (err) {
@@ -1106,6 +1150,17 @@ io.on('connection', (socket) => {
     if (!state) return;
     if (state.creatorSocket === socket.id) state.creatorSocket = null;
     if (state.opponentSocket === socket.id) state.opponentSocket = null;
+
+    if (state.game && state.game.status === 'in_progress') {
+      // Pause the round timer so the disconnecting player isn't auto-forfeited
+      // by the 2-missed-rounds rule mid-window.
+      clearTimeout(state.roundTimer);
+      state.roundTimer = null;
+      state.roundDeadline = null;
+      scheduleAbsenceSettlement(state);
+      io.to(`game_${gameId}`).emit('opponent_absence', { minutes: ABSENCE_MINUTES });
+    }
+
     io.to(`game_${gameId}`).emit('lobby_update', {
       game: state.game,
       creatorConnected: !!state.creatorSocket,
@@ -1163,6 +1218,7 @@ function rbSockOf(state, userId) {
 function rbBeginRound(state) {
   const game = state.game;
   const { dealerId, playerId } = rbRoles(game);
+  scheduleAbsenceSettlement(state);
   io.to(`game_${game.id}`).emit('rb_round_started', { round: game.current_round, totalCards: game.rounds });
   const dealerSock = rbSockOf(state, dealerId);
   const playerSock = rbSockOf(state, playerId);
@@ -1234,6 +1290,7 @@ function startWarZone(state) {
     opponentGuesses: new Set(),
     turn: 'creator',
   };
+  scheduleAbsenceSettlement(state);
   io.to(`game_${state.game.id}`).emit('wz_placement_started', { seconds: WZ_PLACE_SECONDS });
   // 30s placement window; anyone who fails to submit gets random positions
   state.wzTimer = setTimeout(() => {
@@ -1247,6 +1304,7 @@ function startWarZone(state) {
 function wzBeginBattle(state) {
   clearTimeout(state.wzTimer);
   state.wz.phase = 'battle';
+  scheduleAbsenceSettlement(state);
   io.to(`game_${state.game.id}`).emit('wz_battle_started', { turn: state.wz.turn });
 }
 
@@ -1327,6 +1385,7 @@ function resolveRound(state) {
 
 function startRoundTimer(state) {
   clearTimeout(state.roundTimer);
+  scheduleAbsenceSettlement(state);
   const seconds = state.game.round_seconds;
   state.roundDeadline = Date.now() + seconds * 1000;
 
@@ -1405,6 +1464,7 @@ async function settleGame(state, { reason, forfeiter = null }) {
   const gameId = game.id;
   const creatorId = game.creator_id;
   const opponentId = game.opponent_id;
+  cancelAbsenceTimer(state);
 
   const isFree = !!game.is_free;
   const pot = Number(game.pot);
@@ -1475,6 +1535,37 @@ async function settleGame(state, { reason, forfeiter = null }) {
       fee = pot - creatorPayout - opponentPayout;
       winnerId = creatorScore > opponentScore ? creatorId
         : opponentScore > creatorScore ? opponentId : null;
+    }
+  } else if (reason === 'abandoned') {
+    // Nobody rejoined within the window. Current scoreboard stands — a refresh
+    // can no longer void the game. Winner-takes-all: the current leader takes
+    // the full pot (tie refunds each player's share). Per-round: played rounds
+    // are paid out and unplayed rounds are refunded to both.
+    const gamesPlayed = Math.max(0, playedRounds);
+    const gamesLeft = totalGames - gamesPlayed;
+    const ties = Math.max(0, gamesPlayed - creatorScore - opponentScore);
+
+    if (game.payout_style === 'winner_takes_all') {
+      if (creatorScore > opponentScore) winnerId = creatorId;
+      else if (opponentScore > creatorScore) winnerId = opponentId;
+
+      if (winnerId) {
+        const amount = pot * 0.95;
+        fee = pot - amount;
+        if (winnerId === creatorId) creatorPayout = amount;
+        else opponentPayout = amount;
+      } else {
+        creatorPayout = (pot / 2) * 0.95;
+        opponentPayout = (pot / 2) * 0.95;
+        fee = pot * 0.05;
+      }
+    } else {
+      const refundUnplayed = gamesLeft * amountPer;
+      creatorPayout = (creatorScore * winShare) + (ties * tieShare) + refundUnplayed;
+      opponentPayout = (opponentScore * winShare) + (ties * tieShare) + refundUnplayed;
+      fee = gamesPlayed * playedFee;
+      winnerId = creatorPayout > opponentPayout ? creatorId
+        : opponentPayout > creatorPayout ? opponentId : null;
     }
   } else {
     // resignation / auto_resign_timeout
