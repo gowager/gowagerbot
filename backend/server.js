@@ -96,7 +96,7 @@ function checkRateLimit(key, max = 20, windowMs = 60000) {
 const GAME_MIN_NGN = 50;
 const GAME_MAX_NGN = 500;
 const GAME_STEP_NGN = 10;
-const ABSENCE_MINUTES = 15;
+const ABSENCE_MINUTES = 8;
 const ABSENCE_MS = ABSENCE_MINUTES * 60 * 1000;
 const DEPOSIT_MIN_NGN = 100;
 const DEPOSIT_MAX_NGN = 5000;
