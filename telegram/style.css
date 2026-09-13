@@ -519,20 +519,20 @@ h2 {
 
 .pot-box span {
   display: block;
-  color: var(--tg-hint);
+  color: #ffffff;
   font-size: 13px;
   margin-bottom: 4px;
 }
 
 .pot-box strong {
   font-size: 28px;
-  color: var(--tg-accent);
+  color: #ffffff;
   display: block;
   margin-bottom: 4px;
 }
 
 .pot-box small {
-  color: var(--tg-hint);
+  color: #ffffff;
   font-size: 13px;
 }
 
@@ -642,7 +642,7 @@ h2 {
 }
 
 .lobby-row span {
-  color: var(--tg-hint);
+  color: #ffffff;
 }
 
 .lobby-row strong {
