@@ -350,6 +350,7 @@ function wzToggleCell(id) {
   }
   document.getElementById('wz-place-count').textContent = `${wzMyCells.size} / 4 placed`;
   document.getElementById('wz-confirm-btn').disabled = wzMyCells.size !== 4;
+  if (wzMyCells.size === 4) setTimeout(wzConfirm, 350);
 }
 
 function wzStartPlacementCountdown(seconds) {

@@ -276,6 +276,7 @@ function wzToggleCell(id) {
   const count = document.getElementById('wz-place-count');
   count.textContent = `${wzMyCells.size} / 4 placed`;
   document.getElementById('wz-confirm-btn').disabled = wzMyCells.size !== 4;
+  if (wzMyCells.size === 4) setTimeout(wzConfirm, 350);
 }
 
 function wzStartPlacementCountdown(seconds) {

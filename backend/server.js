@@ -1060,9 +1060,11 @@ io.on('connection', (socket) => {
       if (userId === game.creator_id) {
         if (state.wz.creatorCells) return socket.emit('error', { message: 'Positions already locked' });
         state.wz.creatorCells = [...set];
+        console.log(`[wz_place] game=${gameId} creator placed ${[...set].join(',')}`);
       } else {
         if (state.wz.opponentCells) return socket.emit('error', { message: 'Positions already locked' });
         state.wz.opponentCells = [...set];
+        console.log(`[wz_place] game=${gameId} opponent placed ${[...set].join(',')}`);
       }
 
       socket.emit('wz_placed', {});
@@ -1323,8 +1325,8 @@ function startWarZone(state) {
   // 30s placement window; anyone who fails to submit gets random positions
   state.wzTimer = setTimeout(() => {
     if (!state.wz || state.wz.phase !== 'placing') return;
-    if (!state.wz.creatorCells) state.wz.creatorCells = wzAutoPlace();
-    if (!state.wz.opponentCells) state.wz.opponentCells = wzAutoPlace();
+    if (!state.wz.creatorCells) { state.wz.creatorCells = wzAutoPlace(); console.log(`[wz_auto_place] game=${gameId} creator auto-placed ${state.wz.creatorCells.join(',')}`); }
+    if (!state.wz.opponentCells) { state.wz.opponentCells = wzAutoPlace(); console.log(`[wz_auto_place] game=${gameId} opponent auto-placed ${state.wz.opponentCells.join(',')}`); }
     wzBeginBattle(state);
   }, WZ_PLACE_SECONDS * 1000);
 }
