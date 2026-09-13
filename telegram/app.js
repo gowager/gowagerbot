@@ -651,6 +651,7 @@ function renderRulesContent(game) {
   const rulesContent = document.getElementById('rules-content');
   const isFree = !!game.is_free;
   const isRb = game.game_type === 'redblack';
+  const isWz = game.game_type === 'warzone';
   // Stake is the same for both games: rounds (cards) × amount per round
   const stake = Number(game.rounds) * Number(game.amount_per_round);
   let rows;
@@ -664,6 +665,18 @@ function renderRulesContent(game) {
       <div class="rule-row"><span class="rule-label">Your Deposit (Stake)</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) + ' NGN'}</span></div>
       <div class="rule-row"><span class="rule-label">Creator's Role</span><span class="rule-value">${game.creator_role === 'dealer' ? '🎩 Dealer' : '🎯 Player'}</span></div>
       <div class="rule-row"><span class="rule-label">How It Works</span><span class="rule-value">Dealer picks a hidden card - player guesses Red or Black</span></div>
+    `;
+  } else if (isWz) {
+    rows = `
+      <div class="rule-row"><span class="rule-label">Game</span><span class="rule-value">War Zone 🚀</span></div>
+      <div class="rule-row"><span class="rule-label">Mode</span><span class="rule-value">${isFree ? '🎉 FREE' : '💰 Paid'}</span></div>
+      <div class="rule-row"><span class="rule-label">Stake</span><span class="rule-value">${isFree ? 'FREE' : game.amount_per_round + ' NGN'}</span></div>
+      <div class="rule-row"><span class="rule-label">Total Pot</span><span class="rule-value">${isFree ? 'FREE' : (stake * 2).toFixed(2) + ' NGN'}</span></div>
+      <div class="rule-row"><span class="rule-label">Your Deposit (Stake)</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) + ' NGN'}</span></div>
+      <div class="rule-row"><span class="rule-label">Rockets</span><span class="rule-value">4 per player</span></div>
+      <div class="rule-row"><span class="rule-label">Placement Time</span><span class="rule-value">${game.round_seconds}s</span></div>
+      <div class="rule-row"><span class="rule-label">How It Works</span><span class="rule-value">Place 4 rockets in ${game.round_seconds}s, then take turns firing at the enemy grid. Sink all 4 to win - the opponent gets one final shot to force a tie.</span></div>
+      <div class="rule-row"><span class="rule-label">Payout</span><span class="rule-value">Winner Takes All (ties refund both)</span></div>
     `;
   } else {
     rows = `
