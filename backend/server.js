@@ -953,6 +953,13 @@ io.on('connection', (socket) => {
       // Send current game state to the joining player
       socket.emit('game_state', { game: state.game, round: state.game.current_round, deadline: state.roundDeadline });
 
+      // War Zone: if the server restarted mid-game or the placement phase was
+      // interrupted, re-init the engine so the players get a fresh placement
+      // window instead of a stuck screen.
+      if (state.game.status === 'in_progress' && state.game.game_type === 'warzone' && !state.wz) {
+        startWarZone(state);
+      }
+
       // Re-sync Red or Black mid-game state for returning players
       if (state.game.status === 'in_progress' && state.game.game_type === 'redblack' && state.rb) {
         const { dealerId, playerId } = rbRoles(state.game);
@@ -1408,8 +1415,13 @@ function startWarZone(state) {
   // 30s placement window; anyone who fails to submit gets random positions
   state.wzTimer = setTimeout(() => {
     if (!state.wz || state.wz.phase !== 'placing') return;
-    if (!state.wz.creatorCells) { state.wz.creatorCells = wzAutoPlace(); console.log(`[wz_auto_place] game=${gameId} creator auto-placed ${state.wz.creatorCells.join(',')}`); }
-    if (!state.wz.opponentCells) { state.wz.opponentCells = wzAutoPlace(); console.log(`[wz_auto_place] game=${gameId} opponent auto-placed ${state.wz.opponentCells.join(',')}`); }
+    try {
+      if (!state.wz.creatorCells) { state.wz.creatorCells = wzAutoPlace(); console.log(`[wz_auto_place] game=${state.game.id} creator auto-placed ${state.wz.creatorCells.join(',')}`); }
+      if (!state.wz.opponentCells) { state.wz.opponentCells = wzAutoPlace(); console.log(`[wz_auto_place] game=${state.game.id} opponent auto-placed ${state.wz.opponentCells.join(',')}`); }
+    } catch (err) {
+      console.error(`[wz_auto_place] game=${state.game.id} failed:`, err.message);
+    }
+    // The battle always starts once the placement window closes
     wzBeginBattle(state);
   }, WZ_PLACE_SECONDS * 1000);
 }
