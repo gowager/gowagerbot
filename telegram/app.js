@@ -583,7 +583,18 @@ async function editOpponent() {
     showToast('Enter a new Telegram ID', 'error');
     return;
   }
-  showToast('Opponent ID updated', 'success');
+  try {
+    await api(`/api/games/${currentGame.id}/opponent`, {
+      method: 'PATCH',
+      body: JSON.stringify({ playerId: currentUser.id, opponentTelegramId: newOpponentId }),
+    });
+    const fresh = await api(`/api/games/room/${currentRoomCode}`);
+    currentGame = fresh;
+    applyLobbyState(fresh);
+    showToast('Opponent ID updated', 'success');
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
 }
 
 // ---------- JOIN GAME ----------
@@ -890,6 +901,14 @@ document.getElementById('rb-round-display').textContent = '1/' + data.game.round
 
 socket.on('lobby_update', (data) => {
   applyLobbyState(data.game, data.readyPlayers || []);
+});
+
+socket.on('game_opponent_updated', (data) => {
+  if (currentGame && data && data.game) currentGame = data.game;
+  if (currentUser && data && data.opponentId && data.opponentId !== currentUser.id && !(currentGame && currentGame.creator_id === currentUser.id)) {
+    showToast('You are no longer invited to this game', 'info');
+    showScreen('screen-welcome');
+  }
 });
 
 socket.on('game_started', (data) => {

@@ -413,6 +413,29 @@ app.post('/api/games/:id/cancel', async (req, res) => {
   }
 });
 
+// Creator fixes a mistyped opponent. Only allowed while still pending.
+app.patch('/api/games/:id/opponent', async (req, res) => {
+  if (!checkRateLimit(req._rlKey, 10)) return res.status(429).json({ error: 'Too many requests' });
+  const { playerId, opponentTelegramId } = req.body;
+  if (!opponentTelegramId) return res.status(400).json({ error: 'Enter your opponent\'s Telegram ID or @username' });
+  try {
+    const game = await db.getGameById(req.params.id);
+    if (!game) return res.status(404).json({ error: 'Game not found' });
+    if (game.creator_id !== playerId) return res.status(403).json({ error: 'Only the creator can edit the opponent' });
+    if (game.status !== 'pending') return res.status(400).json({ error: 'Opponent can only be changed before the game starts' });
+
+    const opponent = await findUserByIdOrUsername(opponentTelegramId);
+    if (!opponent) return res.status(404).json({ error: 'Opponent not found. They must open the GoWager app (Telegram Mini App) once to register.' });
+    if (opponent.id === game.creator_id) return res.status(400).json({ error: 'Cannot play against yourself' });
+
+    const updated = await db.updateGame(game.id, { opponent_id: opponent.id });
+    io.to(`game_${game.id}`).emit('game_opponent_updated', { game: updated, opponentId: opponent.id });
+    res.json({ game: updated, opponentId: opponent.id });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Withdraw request
 app.post('/api/withdraw', async (req, res) => {
   if (!checkRateLimit(req._rlKey, 5)) return res.status(429).json({ error: 'Too many requests' });
