@@ -6,6 +6,11 @@ node_modules/
 .env.local
 backend/.env
 
+# Secrets & credentials (never commit)
+paystack.txt
+p.txt
+paystackimplement.md
+
 # Logs
 *.log
 npm-debug.log*
