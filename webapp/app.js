@@ -715,15 +715,20 @@ function renderPendingGames(container, games) {
     container.innerHTML = '<p style="color:#999;font-size:14px">No pending games right now.</p>';
     return;
   }
-  container.innerHTML = games.map(g => `
+  container.innerHTML = games.map(g => {
+    const inProgress = g.status === 'in_progress';
+    const statusText = inProgress ? 'In progress — rejoin' : (g.status === 'ready' ? 'Ready to start' : 'Waiting for opponent');
+    const actionLabel = inProgress ? 'Rejoin' : 'Enter';
+    return `
     <div style="display:flex;align-items:center;gap:8px;padding:10px;border:1px solid #ddd;border-radius:8px;margin-bottom:8px;">
       <span style="flex:1;font-size:14px;">
-        <strong>${g.room_code}</strong> · ${g.status === 'ready' ? 'Ready to start' : 'Waiting for opponent'}${g.is_free ? ' · FREE' : ''}
+        <strong>${g.room_code}</strong> · ${statusText}${g.is_free ? ' · FREE' : ''}
       </span>
-      <button class="btn-small" onclick="enterPendingGame('${g.id}')">Enter</button>
-      ${g.creator_id === currentUser.id ? `<button class="btn-small" onclick="cancelPendingGame('${g.id}')">Delete</button>` : ''}
+      <button class="btn-small" onclick="enterPendingGame('${g.id}')">${actionLabel}</button>
+      ${g.creator_id === currentUser.id && !inProgress ? `<button class="btn-small" onclick="cancelPendingGame('${g.id}')">Delete</button>` : ''}
     </div>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function enterPendingGame(gameId) {
@@ -734,7 +739,17 @@ function enterPendingGame(gameId) {
   isCreator = game.creator_id === currentUser.id;
   socket.emit('join_game_room', { gameId: game.id, userId: currentUser.id });
 
-  if (game.status === 'pending' && !isCreator) {
+  if (game.status === 'in_progress') {
+    if (game.game_type === 'redblack') {
+      rbRoleIsDealer = rbAmIDealer(game);
+      document.getElementById('rb-role-label').textContent = rbRoleIsDealer ? 'You are the Dealer 🎩' : 'You are the Player 🎯';
+      showScreen('screen-play-rb');
+    } else if (game.game_type === 'warzone') {
+      showScreen('screen-play-wz');
+    } else {
+      showScreen('screen-play');
+    }
+  } else if (game.status === 'pending' && !isCreator) {
     renderRulesContent(game);
     showScreen('screen-game-rules');
   } else if (isCreator) {
@@ -847,12 +862,14 @@ socket.on('game_state', (data) => {
   lastRoundInfo = null;
   updateOpponentHint();
   updateLastRoundSummary();
-  if (data.game.status === 'in_progress') {
+if (data.game.status === 'in_progress') {
     if (data.game.game_type === 'redblack') {
       rbRoleIsDealer = rbAmIDealer(data.game);
       document.getElementById('rb-role-label').textContent = rbRoleIsDealer ? 'You are the Dealer 🎩' : 'You are the Player 🎯';
-document.getElementById('rb-round-display').textContent = '1/' + data.game.rounds;
+      document.getElementById('rb-round-display').textContent = data.game.current_round + '/' + data.game.rounds;
       showScreen('screen-play-rb');
+    } else if (data.game.game_type === 'warzone') {
+      showScreen('screen-play-wz');
     } else {
       showScreen('screen-play');
     }

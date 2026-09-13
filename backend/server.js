@@ -374,7 +374,7 @@ app.post('/api/demo/credit', async (req, res) => {
 app.get('/api/games/player/:userId/pending', async (req, res) => {
   if (!checkRateLimit(req._rlKey)) return res.status(429).json({ error: 'Too many requests' });
   try {
-    const games = await db.getGamesByUserAndStatus(req.params.userId, ['pending', 'ready']);
+    const games = await db.getGamesByUserAndStatus(req.params.userId, ['pending', 'ready', 'in_progress']);
     res.json(games);
   } catch (err) {
     res.status(500).json({ error: err.message });
