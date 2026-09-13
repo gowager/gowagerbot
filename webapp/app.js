@@ -711,7 +711,7 @@ function applyLobbyState(game, readyPlayers = []) {
     showStart = !iAmReady;
     statusText = iAmReady
       ? 'You are ready. Waiting for opponent to press Start...'
-      : 'Opponent is in! Both players press Start to begin.';
+      : 'Opponent is in. Both players press Start Game to begin.';
   } else {
     return;
   }
