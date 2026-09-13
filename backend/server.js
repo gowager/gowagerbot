@@ -726,6 +726,39 @@ app.get('/api/withdrawal-requests/:userId', async (req, res) => {
 
 // ---------- ADMIN: review and process withdrawal requests ----------
 
+// Admin clears every pending/ready game. Stakes are refunded in full; only
+// created games are removed, completed/in-progress games are untouched.
+app.post('/api/admin/clear-pending-games', isAdmin, async (req, res) => {
+  if (!checkRateLimit(req._rlKey)) return res.status(429).json({ error: 'Too many requests' });
+  try {
+    const games = await db.getGamesByStatus(['pending', 'ready']);
+    let cleared = 0;
+    let refunded = 0;
+
+    for (const game of games) {
+      if (!game.is_free) {
+        const stake = Number(game.amount_per_round) * Number(game.rounds);
+        await db.addFunds(game.creator_id, stake);
+        await db.createTransaction({ user_id: game.creator_id, type: 'game_refund', amount: stake, status: 'completed' });
+        refunded += stake;
+        if (game.status === 'ready' && game.opponent_id) {
+          await db.addFunds(game.opponent_id, stake);
+          await db.createTransaction({ user_id: game.opponent_id, type: 'game_refund', amount: stake, status: 'completed' });
+          refunded += stake;
+        }
+      }
+      io.to(`game_${game.id}`).emit('game_cancelled', { message: 'This game was cleared by the admin. Your stake was refunded.' });
+      activeGames.delete(game.id);
+      await db.deleteGame(game.id);
+      cleared += 1;
+    }
+
+    res.json({ success: true, cleared, refunded });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/admin/withdrawal-requests', isAdmin, async (req, res) => {
   if (!checkRateLimit(req._rlKey)) return res.status(429).json({ error: 'Too many requests' });
   try {
