@@ -874,6 +874,8 @@ io.on('connection', (socket) => {
       if (state.game.status === 'in_progress') {
         scheduleAbsenceSettlement(state);
         if (state.game.game_type === 'rps' && !state.roundTimer) startRoundTimer(state);
+        // Let the other player know their opponent is back
+        socket.broadcast.to(`game_${gameId}`).emit('opponent_rejoined', { userId });
       }
 
       // Send current game state to the joining player

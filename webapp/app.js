@@ -899,6 +899,10 @@ socket.on('opponent_absence', (data) => {
   showToast(`Opponent disconnected. They have ${data.minutes} minutes to rejoin, or the game settles with current results.`, 'info');
 });
 
+socket.on('opponent_rejoined', () => {
+  showToast('Opponent has rejoined — game resumed!', 'success');
+});
+
 socket.on('game_started', (data) => {
   currentGame = data.game;
   myChoice = null;
