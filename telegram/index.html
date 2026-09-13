@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>GoWager</title>
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
 <body>
@@ -192,11 +192,12 @@
         </div>
         <div class="field">
           <label>Seconds per Move</label>
-          <select id="wz-move-seconds">
-            <option value="15">15 seconds</option>
-            <option value="20" selected>20 seconds</option>
-            <option value="30">30 seconds</option>
-          </select>
+          <div class="segmented">
+            <button class="seg-btn" data-val="15" onclick="selectSeg(this, 'wz-move-seconds')">15s</button>
+            <button class="seg-btn active" data-val="20" onclick="selectSeg(this, 'wz-move-seconds')">20s</button>
+            <button class="seg-btn" data-val="30" onclick="selectSeg(this, 'wz-move-seconds')">30s</button>
+          </div>
+          <input type="hidden" id="wz-move-seconds" value="20">
         </div>
         <div class="lobby-row" id="wz-pot-display"><span>Total Pot</span><strong><span id="wz-pot">100.00</span> NGN</strong></div>
         <div class="lobby-row" id="wz-share-row"><span>Your Stake</span><strong><span id="wz-share">50.00</span> NGN</strong></div>
@@ -537,6 +538,6 @@
   </div>
 
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

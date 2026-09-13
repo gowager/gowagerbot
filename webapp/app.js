@@ -207,6 +207,13 @@ function updateWzPot() {
   if (shareEl) shareEl.textContent = stake.toFixed(2);
 }
 
+function selectSeg(btn, hiddenId) {
+  const parent = btn.parentElement;
+  parent.querySelectorAll('.seg-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(hiddenId).value = btn.dataset.val;
+}
+
 async function createWzGame() {
   const opponentTelegramId = document.getElementById('wz-opponent-id').value.trim();
   const stake = parseInt(document.getElementById('wz-stake').value);

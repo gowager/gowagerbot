@@ -366,6 +366,30 @@ p {
   font-size: 12px;
 }
 
+.segmented {
+  display: flex;
+  gap: 6px;
+}
+
+.seg-btn {
+  background: #f8f9fa;
+  border: 2px solid #e0e0e0;
+  color: #666;
+  padding: 12px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  flex: 1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.seg-btn.active {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  border-color: #764ba2;
+}
+
 .hint {
   color: #999;
   font-size: 13px;

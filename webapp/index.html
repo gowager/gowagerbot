@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GoWager - Wager with Friends</title>
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
 </head>
 <body>
   <div id="app">
@@ -152,11 +152,12 @@
       </div>
       <div class="form-group">
         <label>Seconds per Move</label>
-        <select id="wz-move-seconds">
-          <option value="15">15 seconds</option>
-          <option value="20" selected>20 seconds</option>
-          <option value="30">30 seconds</option>
-        </select>
+        <div class="segmented">
+          <button class="seg-btn" data-val="15" onclick="selectSeg(this, 'wz-move-seconds')">15s</button>
+          <button class="seg-btn active" data-val="20" onclick="selectSeg(this, 'wz-move-seconds')">20s</button>
+          <button class="seg-btn" data-val="30" onclick="selectSeg(this, 'wz-move-seconds')">30s</button>
+        </div>
+        <input type="hidden" id="wz-move-seconds" value="20">
       </div>
       <div class="total-display" id="wz-pot-display">
         <strong>Total Pot: <span id="wz-pot">4.00</span> NGN</strong>
@@ -476,6 +477,6 @@
   </div>
 
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-  <script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>
