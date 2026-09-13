@@ -902,6 +902,7 @@ io.on('connection', (socket) => {
             turn: state.wz.turn,
             creatorHits: state.wz.creatorHits,
             opponentHits: state.wz.opponentHits,
+            lastChance: state.wz.lastChance,
             yourGuesses: isCreator ? [...state.wz.creatorGuesses].map(cellId) : [...state.wz.opponentGuesses].map(cellId),
             incomingShots: isCreator ? [...state.wz.opponentGuesses].map(cellId) : [...state.wz.creatorGuesses].map(cellId),
           });
@@ -1096,7 +1097,14 @@ io.on('connection', (socket) => {
       if (isCreator) { if (hit) state.wz.creatorHits += 1; }
       else if (hit) state.wz.opponentHits += 1;
 
-      const gameOver = state.wz.creatorHits >= WZ_TARGETS || state.wz.opponentHits >= WZ_TARGETS;
+      // Unless someone reached 4 first, there is no game-over yet. When a player
+      // sinks their 4th rocket, the OTHER player gets exactly one final shot:
+      // they hit to tie (4-4) or miss and lose. The game only ends on (or after)
+      // that final shot.
+      const shooterHits = isCreator ? state.wz.creatorHits : state.wz.opponentHits;
+      const justHitFour = !state.wz.lastChance && shooterHits >= WZ_TARGETS;
+      if (justHitFour) state.wz.lastChance = true;
+      const gameOver = state.wz.lastChance && !justHitFour;
 
       // Persist hits as scores so settleGame picks the right winner
       const updated = await db.updateGame(game.id, gameOver
@@ -1111,6 +1119,8 @@ io.on('connection', (socket) => {
         creatorHits: state.wz.creatorHits,
         opponentHits: state.wz.opponentHits,
         gameOver,
+        lastChance: justHitFour,
+        tie: gameOver && state.wz.creatorHits === state.wz.opponentHits,
       });
 
       if (gameOver) {
@@ -1119,7 +1129,7 @@ io.on('connection', (socket) => {
       } else {
         state.wz.turn = isCreator ? 'opponent' : 'creator';
         scheduleAbsenceSettlement(state);
-        io.to(`game_${gameId}`).emit('wz_turn', { turn: state.wz.turn });
+        io.to(`game_${gameId}`).emit('wz_turn', { turn: state.wz.turn, lastChance: !!state.wz.lastChance });
       }
     } catch (err) {
       socket.emit('error', { message: err.message });
@@ -1319,6 +1329,7 @@ function startWarZone(state) {
     creatorGuesses: new Set(),
     opponentGuesses: new Set(),
     turn: 'creator',
+    lastChance: false,
   };
   scheduleAbsenceSettlement(state);
   io.to(`game_${state.game.id}`).emit('wz_placement_started', { seconds: WZ_PLACE_SECONDS });

@@ -181,6 +181,7 @@ let wzPlaced = false;
 let wzBattle = false;
 let wzMyTurn = false;
 let wzTimerInt = null;
+let wzLastChance = false;
 
 function updateWzPot() {
   const stake = parseInt(document.getElementById('wz-stake').value) || 50;
@@ -365,7 +366,10 @@ let wzEnemyMarks = new Map();
 
 function wzUpdateBattleStatus() {
   const status = document.getElementById('wz-status');
-  if (wzMyTurn) status.textContent = '🎯 Your turn - fire at the enemy grid!';
+  if (wzLastChance) {
+    if (wzMyTurn) status.textContent = '⚡ FINAL SHOT - hit to tie, miss and you lose!';
+    else status.textContent = '⚡ Opponent\'s final shot - it\'s all or nothing!';
+  } else if (wzMyTurn) status.textContent = '🎯 Your turn - fire at the enemy grid!';
   else status.textContent = '⏳ Waiting for opponent\'s shot...';
 }
 
@@ -374,6 +378,7 @@ socket.on('wz_sync', (data) => {
   wzEnemyMarks = new Map();
   (data.yourGuesses || []).forEach(c => wzEnemyMarks.set(c, { cls: '', txt: '?' }));
   wzMyTurn = isCreator ? data.turn === 'creator' : data.turn === 'opponent';
+  wzLastChance = !!data.lastChance;
   document.getElementById('wz-my-hits').textContent = isCreator ? data.creatorHits : data.opponentHits;
   document.getElementById('wz-opp-hits').textContent = isCreator ? data.opponentHits : data.creatorHits;
   wzRenderEnemyGrid();
@@ -402,6 +407,16 @@ socket.on('wz_result', (data) => {
     msg.textContent = '😌 Opponent missed your waters.';
   }
 
+  if (data.lastChance) {
+    msg.textContent += ' ⚡ All 4 rockets hit! Opponent gets ONE final shot.';
+  } else if (data.gameOver && data.tie) {
+    msg.textContent = '🤝 TIE 4-4 - stakes refunded!';
+  } else if (data.gameOver) {
+    const myHits = isCreator ? data.creatorHits : data.opponentHits;
+    const theirHits = isCreator ? data.opponentHits : data.creatorHits;
+    msg.textContent = myHits > theirHits ? '🏆 YOU WIN! All enemy rockets gone!' : '😔 You lose - opponent sank your fleet.';
+  }
+
   if (data.gameOver) wzMyTurn = false;
   wzRenderEnemyGrid();
   if (!data.gameOver) wzUpdateBattleStatus();
@@ -409,6 +424,7 @@ socket.on('wz_result', (data) => {
 
 socket.on('wz_turn', (data) => {
   wzMyTurn = isCreator ? data.turn === 'creator' : data.turn === 'opponent';
+  wzLastChance = !!data.lastChance;
   wzRenderEnemyGrid();
   wzUpdateBattleStatus();
 });
