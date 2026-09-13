@@ -480,7 +480,8 @@ function wzUpdateBattleStatus() {
 
 socket.on('wz_sync', (data) => {
   wzEnemyMarks = new Map();
-  (data.yourGuesses || []).forEach(c => wzEnemyMarks.set(c, { cls: '', txt: '?' }));
+  const wzEnemyHitSet = new Set(data.yourHits || []);
+  (data.yourGuesses || []).forEach(c => wzEnemyMarks.set(c, wzEnemyHitSet.has(c) ? { cls: 'hit', txt: '🔥' } : { cls: 'miss', txt: '❌' }));
   if (data.yourCells) wzMyCells = new Set(data.yourCells);
   wzIncomingMarks = new Map();
   (data.incomingShots || []).forEach(c => {

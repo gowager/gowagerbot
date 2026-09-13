@@ -996,6 +996,7 @@ io.on('connection', (socket) => {
             moveDeadline: state.wz.moveDeadline,
             yourCells: isCreator ? state.wz.creatorCells : state.wz.opponentCells,
             yourGuesses: isCreator ? [...state.wz.creatorGuesses].map(cellId) : [...state.wz.opponentGuesses].map(cellId),
+            yourHits: isCreator ? [...state.wz.creatorGuesses].map(cellId).filter(c => state.wz.opponentCells.includes(c)) : [...state.wz.opponentGuesses].map(cellId).filter(c => state.wz.creatorCells.includes(c)),
             incomingShots: isCreator ? [...state.wz.opponentGuesses].map(cellId) : [...state.wz.creatorGuesses].map(cellId),
           });
         }
