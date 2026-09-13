@@ -254,6 +254,24 @@ let wzMyTurn = false;
 let wzTimerInt = null;
 let wzLastChance = false;
 let wzEnemyMarks = new Map();
+let wzIncomingMarks = new Map();
+
+function wzRenderMyGrid() {
+  const grid = document.getElementById('wz-my-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 16; i++) {
+    const id = WZ_CELL_IDS[i];
+    const placed = wzMyCells.has(id);
+    const incoming = wzIncomingMarks.get(id);
+    const cell = document.createElement('div');
+    cell.dataset.id = id;
+    cell.className = 'wz-cell' + (placed ? ' mine' : '');
+    if (placed && incoming) cell.classList.add('sunk');
+    const face = incoming ? incoming.txt : (placed ? WZ_EMOJI : '');
+    cell.innerHTML = `<span class="wz-cell-id">${id}</span><span class="wz-cell-face">${face}</span>`;
+    grid.appendChild(cell);
+  }
+}
 
 function updateWzPot() {
   const stake = parseInt(document.getElementById('wz-stake').value) || 50;
@@ -393,17 +411,11 @@ socket.on('wz_battle_started', (data) => {
   document.getElementById('wz-timer-box').style.display = 'none';
   document.getElementById('wz-confirm-box').style.display = 'none';
   document.getElementById('wz-phase-label').textContent = 'Battle!';
-  const grid = document.getElementById('wz-my-grid');
-  grid.innerHTML = '';
-  for (let i = 0; i < 16; i++) {
-    const id = WZ_CELL_IDS[i];
-    const placed = wzMyCells.has(id);
-    const cell = document.createElement('div');
-    cell.dataset.id = id;
-    cell.className = 'wz-cell' + (placed ? ' mine' : '');
-    cell.innerHTML = `<span class="wz-cell-id">${id}</span><span class="wz-cell-face">${placed ? WZ_EMOJI : ''}</span>`;
-    grid.appendChild(cell);
+  if (data.creatorCells && data.opponentCells) {
+    wzMyCells = new Set(isCreator ? data.creatorCells : data.opponentCells);
   }
+  wzIncomingMarks = new Map();
+  wzRenderMyGrid();
   wzEnemyMarks = new Map();
   wzMyTurn = isCreator ? data.turn === 'creator' : data.turn === 'opponent';
   wzRenderEnemyGrid();
@@ -446,6 +458,12 @@ function wzUpdateBattleStatus() {
 socket.on('wz_sync', (data) => {
   wzEnemyMarks = new Map();
   (data.yourGuesses || []).forEach(c => wzEnemyMarks.set(c, { cls: '', txt: '?' }));
+  if (data.yourCells) wzMyCells = new Set(data.yourCells);
+  wzIncomingMarks = new Map();
+  (data.incomingShots || []).forEach(c => {
+    wzIncomingMarks.set(c, wzMyCells.has(c) ? { cls: 'sunk', txt: '💥' } : { cls: 'miss', txt: '💧' });
+  });
+  wzRenderMyGrid();
   wzMyTurn = isCreator ? data.turn === 'creator' : data.turn === 'opponent';
   wzLastChance = !!data.lastChance;
   document.getElementById('wz-my-hits').textContent = isCreator ? data.creatorHits : data.opponentHits;
@@ -464,6 +482,7 @@ socket.on('wz_result', (data) => {
     wzEnemyMarks.set(data.cell, data.hit ? { cls: 'hit', txt: '🔥' } : { cls: 'miss', txt: '❌' });
     msg.textContent = data.hit ? '💥 HIT! Enemy rocket found!' : '💧 Miss — splash!';
   } else if (data.hit && wzMyCells.has(data.cell)) {
+    wzIncomingMarks.set(data.cell, { cls: 'sunk', txt: '💥' });
     const c = document.querySelector(`#wz-my-grid [data-id="${data.cell}"]`);
     if (c) {
       c.classList.add('sunk');
@@ -473,6 +492,7 @@ socket.on('wz_result', (data) => {
     }
     msg.textContent = '😱 Your rocket was hit!';
   } else {
+    wzIncomingMarks.set(data.cell, { cls: 'miss', txt: '💧' });
     msg.textContent = '😌 Opponent missed your waters.';
   }
 

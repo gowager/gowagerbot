@@ -976,12 +976,17 @@ io.on('connection', (socket) => {
             socket.emit('wz_placed', {});
           }
         } else {
-          socket.emit('wz_battle_started', { turn: state.wz.turn });
+          socket.emit('wz_battle_started', {
+            turn: state.wz.turn,
+            creatorCells: state.wz.creatorCells,
+            opponentCells: state.wz.opponentCells,
+          });
           socket.emit('wz_sync', {
             turn: state.wz.turn,
             creatorHits: state.wz.creatorHits,
             opponentHits: state.wz.opponentHits,
             lastChance: state.wz.lastChance,
+            yourCells: isCreator ? state.wz.creatorCells : state.wz.opponentCells,
             yourGuesses: isCreator ? [...state.wz.creatorGuesses].map(cellId) : [...state.wz.opponentGuesses].map(cellId),
             incomingShots: isCreator ? [...state.wz.opponentGuesses].map(cellId) : [...state.wz.creatorGuesses].map(cellId),
           });
@@ -1430,7 +1435,11 @@ function wzBeginBattle(state) {
   clearTimeout(state.wzTimer);
   state.wz.phase = 'battle';
   scheduleAbsenceSettlement(state);
-  io.to(`game_${state.game.id}`).emit('wz_battle_started', { turn: state.wz.turn });
+  io.to(`game_${state.game.id}`).emit('wz_battle_started', {
+    turn: state.wz.turn,
+    creatorCells: state.wz.creatorCells,
+    opponentCells: state.wz.opponentCells,
+  });
 }
 
 // ---------- GAME LOGIC ----------
