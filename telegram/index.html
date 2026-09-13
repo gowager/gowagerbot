@@ -375,7 +375,7 @@
         <div class="room-code" id="room-code-display">------</div>
         <button class="btn-outline btn-sm" onclick="copyRoomCode()">📋 Copy</button>
       </div>
-      <div class="lobby-row"><span>Status</span><span id="creator-lobby-status">Waiting for opponent...</span></div>
+      <div class="lobby-row"><span id="creator-lobby-status">Waiting for opponent...</span></div>
       <button class="btn-primary" id="creator-start-btn" onclick="startGame()" style="display:none">▶ Start Game</button>
       <div class="field">
         <label>Edit Opponent ID (if mistake)</label>
@@ -432,7 +432,7 @@
       </div>
       <div class="lobby-box">
         <div class="lobby-row"><span>Room</span><strong id="lobby-room">---</strong></div>
-        <div class="lobby-row"><span>Status</span><span id="lobby-status">Waiting</span></div>
+        <div class="lobby-row"><span id="lobby-status">Waiting</span></div>
       </div>
       <button class="btn-primary" id="start-game-btn" onclick="startGame()" style="display:none">▶ Start Game</button>
     </div>
