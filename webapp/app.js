@@ -261,7 +261,7 @@ function wzRenderPlacementGrid() {
   }
   const count = document.getElementById('wz-place-count');
   count.textContent = `${wzMyCells.size} / 4 placed`;
-  document.getElementById('wz-confirm-btn').disabled = wzMyCells.size !== 4;
+  document.getElementById('wz-confirm-btn').disabled = wzMyCells.size === 0 || wzPlaced;
 }
 
 function wzToggleCell(id) {
@@ -276,7 +276,7 @@ function wzToggleCell(id) {
   }
   const count = document.getElementById('wz-place-count');
   count.textContent = `${wzMyCells.size} / 4 placed`;
-  document.getElementById('wz-confirm-btn').disabled = wzMyCells.size !== 4;
+  document.getElementById('wz-confirm-btn').disabled = wzMyCells.size === 0 || wzPlaced;
   if (wzMyCells.size === 4) setTimeout(wzConfirm, 350);
 }
 
@@ -290,12 +290,16 @@ function wzStartPlacementCountdown(seconds) {
   wzTimerInt = setInterval(() => {
     left -= 1;
     label.textContent = Math.max(left, 0);
-    if (left <= 0) clearInterval(wzTimerInt);
+    if (left <= 0) {
+      clearInterval(wzTimerInt);
+      // Lock in whatever was placed; the server randomly fills the rest
+      if (!wzPlaced && wzMyCells.size >= 1) wzConfirm();
+    }
   }, 1000);
 }
 
 function wzConfirm() {
-  if (wzMyCells.size !== 4 || wzPlaced) return;
+  if (wzPlaced || wzMyCells.size < 1) return;
   socket.emit('wz_place', { gameId: currentGame.id, cells: [...wzMyCells] });
 }
 

@@ -1133,14 +1133,19 @@ io.on('connection', (socket) => {
       const userId = socket.data.userId;
       if (userId !== game.creator_id && userId !== game.opponent_id) return socket.emit('error', { message: 'You are not part of this game' });
 
-      if (!Array.isArray(cells) || cells.length !== WZ_TARGETS) return socket.emit('error', { message: 'Place exactly 4 rockets' });
+      if (!Array.isArray(cells) || cells.length < 1 || cells.length > WZ_TARGETS) return socket.emit('error', { message: 'Place between 1 and 4 rockets' });
       const ids = cells.map((c) => {
         const idx = cellIndex(c);
         return idx === null ? null : cellId(idx);
       });
       if (ids.includes(null)) return socket.emit('error', { message: 'Invalid positions' });
       const set = new Set(ids);
-      if (set.size !== WZ_TARGETS) return socket.emit('error', { message: 'Invalid or duplicate positions' });
+      if (set.size !== ids.length) return socket.emit('error', { message: 'Invalid or duplicate positions' });
+      // Partial submission: keep the player's picks and randomly fill the rest
+      while (set.size < WZ_TARGETS) {
+        const idx = crypto.randomInt(WZ_SIZE);
+        if (!set.has(cellId(idx))) set.add(cellId(idx));
+      }
 
       if (userId === game.creator_id) {
         if (state.wz.creatorCells) return socket.emit('error', { message: 'Positions already locked' });
