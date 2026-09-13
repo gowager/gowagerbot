@@ -28,11 +28,12 @@ function showScreen(id) {
   if (id === 'screen-create-game') applyFreeModeUI('rps');
   if (id === 'screen-create-rb') applyFreeModeUI('rb');
   if (id === 'screen-create-wz') applyFreeModeUI('wz');
+  if (id === 'screen-create-ttt') applyFreeModeUI('ttt');
 }
 
 function applyFreeModeUI(type) {
   const free = isFreeMode;
-  const prefix = type === 'rps' ? 'rps' : type === 'rb' ? 'rb' : 'wz';
+  const prefix = type === 'rps' ? 'rps' : type === 'rb' ? 'rb' : type === 'wz' ? 'wz' : 'ttt';
   // Toggle pot display vs free badge
   const potDisplay = document.getElementById(`${prefix}-pot-display`);
   const freeBadge  = document.getElementById(`${prefix}-free-badge`);
@@ -43,6 +44,7 @@ function applyFreeModeUI(type) {
     rps: ['rps-amount-group'],
     rb:  ['rb-bet-group'],
     wz:  ['wz-stake-group'],
+    ttt: ['ttt-stake-group'],
   };
   (amountIds[type] || []).forEach(elId => {
     const el = document.getElementById(elId);
@@ -142,12 +144,17 @@ function selectGame(game) {
     showScreen('screen-rb-options');
   } else if (game === 'warzone') {
     showScreen('screen-wz-options');
+  } else if (game === 'tictactoe') {
+    showScreen('screen-ttt-options');
   }
 }
 
 // Join screen back button returns to whichever game's options screen sent us there
 function backToOptions() {
-  showScreen(lastSelectedGame === 'redblack' ? 'screen-rb-options' : 'screen-game-options');
+  if (lastSelectedGame === 'redblack') showScreen('screen-rb-options');
+  else if (lastSelectedGame === 'warzone') showScreen('screen-wz-options');
+  else if (lastSelectedGame === 'tictactoe') showScreen('screen-ttt-options');
+  else showScreen('screen-game-options');
 }
 
 // ---------- RED OR BLACK ----------
@@ -490,6 +497,112 @@ socket.on('wz_move_skipped', (data) => {
   showToast(skippedMe ? '⏰ Time up - your turn was skipped!' : '⏰ Opponent took too long - turn skipped.', 'info');
 });
 
+// ---------- TIC TAC TOE ----------
+
+let tttTimerInt = null;
+let tttGameOver = false;
+let tttMyMark = 'X';
+
+function updateTttPot() {
+  const stake = parseInt(document.getElementById('ttt-stake').value) || 50;
+  const potEl = document.getElementById('ttt-pot');
+  const shareEl = document.getElementById('ttt-share');
+  if (potEl) potEl.textContent = (stake * 2).toFixed(2);
+  if (shareEl) shareEl.textContent = stake.toFixed(2);
+}
+
+async function createTttGame() {
+  const opponentTelegramId = document.getElementById('ttt-opponent-id').value.trim();
+  const stake = parseInt(document.getElementById('ttt-stake').value);
+  if (!opponentTelegramId) return showToast('Enter your opponent\'s Telegram ID or @username', 'error');
+  if (!isFreeMode && (stake < 50 || stake > 500 || stake % 10 !== 0)) return showToast('Stake must be 50-500 NGN per match, in multiples of 10', 'error');
+  try {
+    const data = await api('/api/games', {
+      method: 'POST',
+      body: JSON.stringify({
+        creatorId: currentUser.id,
+        opponentTelegramId,
+        rounds: 1,
+        amountPerRound: isFreeMode ? 0 : stake,
+        roundSeconds: parseInt(document.getElementById('ttt-move-seconds').value) || 15,
+        payoutStyle: 'winner_takes_all',
+        resignRule: 'full_pot',
+        isFree: isFreeMode,
+        gameType: 'tictactoe',
+      }),
+    });
+    currentGame = data.game;
+    currentRoomCode = data.roomCode;
+    isCreator = true;
+    pendingGamesCache[data.game.id] = data.game;
+    document.getElementById('room-code-display').textContent = data.roomCode;
+    document.getElementById('edit-opponent-id').value = opponentTelegramId;
+    showScreen('screen-room-code');
+    applyLobbyState(data.game);
+    const wallet = await api(`/api/wallet/${currentUser.id}`);
+    updateWallet(wallet.balance);
+    socket.emit('join_game_room', { gameId: currentGame.id, userId: currentUser.id });
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+function tttStartCountdown(deadline) {
+  clearInterval(tttTimerInt);
+  const el = document.getElementById('ttt-move-timer');
+  if (!el || !deadline) return;
+  el.style.display = 'block';
+  const tick = () => {
+    const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    el.textContent = `⏱ ${left}s`;
+    if (left <= 0) clearInterval(tttTimerInt);
+  };
+  tick();
+  tttTimerInt = setInterval(tick, 500);
+}
+
+function tttRenderBoard(state) {
+  const board = state.board || [];
+  const turn = state.turn;
+  tttGameOver = !!state.gameOver;
+  const myTurn = tttGameOver ? false : (isCreator ? turn === 'creator' : turn === 'opponent');
+  const grid = document.getElementById('ttt-board');
+  grid.innerHTML = '';
+  for (let i = 0; i < 9; i++) {
+    const cell = document.createElement('button');
+    cell.className = 'ttt-cell';
+    cell.textContent = board[i] || '';
+    cell.disabled = !myTurn || !!board[i];
+    if (board[i]) cell.classList.add(board[i].toLowerCase());
+    cell.onclick = () => {
+      if (!myTurn || board[i]) return;
+      socket.emit('ttt_move', { gameId: currentGame.id, index: i });
+    };
+    grid.appendChild(cell);
+  }
+  const status = document.getElementById('ttt-status');
+  const result = document.getElementById('ttt-result');
+  if (tttGameOver) {
+    const winnerIsMe = state.winner === (isCreator ? 'creator' : 'opponent');
+    if (state.tie) result.textContent = '🤝 It\'s a tie!';
+    else result.textContent = winnerIsMe ? '🎉 You win!' : '😔 You lose.';
+    status.textContent = '';
+  } else {
+    result.textContent = '';
+    status.textContent = myTurn ? '🎯 Your turn - place your mark!' : '⏳ Waiting for opponent\'s move...';
+  }
+  tttStartCountdown(state.moveDeadline);
+}
+
+socket.on('ttt_state', (data) => {
+  tttRenderBoard(data);
+});
+
+socket.on('ttt_move_skipped', (data) => {
+  const skippedMe = isCreator ? data.skippedTurn === 'creator' : data.skippedTurn === 'opponent';
+  showToast(skippedMe ? '⏰ Time up - your turn was skipped!' : '⏰ Opponent took too long - turn skipped.', 'info');
+});
+
 async function createRbGame() {
   const opponentTelegramId = document.getElementById('rb-opponent-id').value.trim();
   const cards = parseInt(document.getElementById('rb-cards').value);
@@ -585,6 +698,8 @@ document.getElementById('amount').addEventListener('input', updateTotalPot);
   document.getElementById('rb-bet').addEventListener('input', updateRbPot);
   const wzStakeInput = document.getElementById('wz-stake');
   if (wzStakeInput) wzStakeInput.addEventListener('input', updateWzPot);
+  const tttStakeInput = document.getElementById('ttt-stake');
+  if (tttStakeInput) tttStakeInput.addEventListener('input', updateTttPot);
   const rbCardsInput = document.getElementById('rb-cards');
   if (rbCardsInput) rbCardsInput.addEventListener('input', updateRbPot);
 
@@ -672,9 +787,21 @@ function renderRulesContent(game) {
   const isFree = !!game.is_free;
   const isRb = game.game_type === 'redblack';
   const isWz = game.game_type === 'warzone';
+  const isTtt = game.game_type === 'tictactoe';
   const stake = Number(game.rounds) * Number(game.amount_per_round);
   let rows;
-  if (isRb) {
+  if (isTtt) {
+    rows = `
+      <div class="rule-row"><span class="rule-label">Game</span><span class="rule-value">Tic Tac Toe ⭕❌</span></div>
+      <div class="rule-row"><span class="rule-label">Mode</span><span class="rule-value">${isFree ? '🎉 FREE' : '💰 Paid'}</span></div>
+      <div class="rule-row"><span class="rule-label">Stake</span><span class="rule-value">${isFree ? 'FREE' : game.amount_per_round + ' NGN'}</span></div>
+      <div class="rule-row"><span class="rule-label">Total Pot</span><span class="rule-value">${isFree ? 'FREE' : (stake * 2).toFixed(2) + ' NGN'}</span></div>
+      <div class="rule-row"><span class="rule-label">Your Deposit (Stake)</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) + ' NGN'}</span></div>
+      <div class="rule-row"><span class="rule-label">Move Time</span><span class="rule-value">${game.round_seconds}s to move - skip turn if you run out</span></div>
+      <div class="rule-row"><span class="rule-label">How It Works</span><span class="rule-value">Creator is X and goes first, opponent is O. Get three in a row to win. Draws refund both.</span></div>
+      <div class="rule-row"><span class="rule-label">Payout</span><span class="rule-value">Winner Takes All (ties refund both)</span></div>
+    `;
+  } else if (isRb) {
     rows = `
       <div class="rule-row"><span class="rule-label">Game</span><span class="rule-value">Red or Black 🃏</span></div>
       <div class="rule-row"><span class="rule-label">Mode</span><span class="rule-value">${isFree ? '🎉 FREE' : '💰 Paid'}</span></div>
@@ -862,6 +989,11 @@ function enterPendingGame(gameId) {
       showScreen('screen-play-rb');
     } else if (game.game_type === 'warzone') {
       showScreen('screen-play-wz');
+    } else if (game.game_type === 'tictactoe') {
+      tttMyMark = isCreator ? 'X' : 'O';
+      document.getElementById('ttt-role-label').textContent = `You are ${tttMyMark}`;
+      tttGameOver = false;
+      showScreen('screen-play-ttt');
     } else {
       showScreen('screen-play');
     }
@@ -986,6 +1118,11 @@ if (data.game.status === 'in_progress') {
       showScreen('screen-play-rb');
     } else if (data.game.game_type === 'warzone') {
       showScreen('screen-play-wz');
+    } else if (data.game.game_type === 'tictactoe') {
+      tttMyMark = isCreator ? 'X' : 'O';
+      document.getElementById('ttt-role-label').textContent = `You are ${tttMyMark}`;
+      tttGameOver = false;
+      showScreen('screen-play-ttt');
     } else {
       showScreen('screen-play');
     }
@@ -1039,6 +1176,13 @@ socket.on('game_started', (data) => {
   } else if (data.game.game_type === 'warzone') {
     wzResetLocal();
     showScreen('screen-play-wz');
+  } else if (data.game.game_type === 'tictactoe') {
+    tttMyMark = isCreator ? 'X' : 'O';
+    document.getElementById('ttt-role-label').textContent = `You are ${tttMyMark}`;
+    tttGameOver = false;
+    document.getElementById('ttt-status').textContent = '';
+    document.getElementById('ttt-result').textContent = '';
+    showScreen('screen-play-ttt');
   } else {
     document.getElementById('current-round').textContent = 1;
     document.getElementById('total-rounds').textContent = data.game.rounds;

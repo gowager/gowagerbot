@@ -1107,6 +1107,38 @@ h2 {
 .wz-cell.sunk { background: #5c2b2b; border-color: #ff6b6b; }
 .wz-cell.miss { background: #1f2d42; border-color: #5a8dd6; }
 
+/* ---------- TIC TAC TOE ---------- */
+.ttt-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-width: 320px;
+  margin: 0 auto 12px;
+}
+.ttt-cell {
+  aspect-ratio: 1;
+  min-height: 70px;
+  border-radius: 10px;
+  border: 2px solid #3a3f4b;
+  background: #23262e;
+  font-size: 42px;
+  font-weight: 800;
+  color: #e8eaf0;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+}
+.ttt-cell:active:not(:disabled) { transform: scale(0.95); }
+.ttt-cell:disabled { cursor: default; opacity: 0.85; }
+.ttt-cell.x { background: #462525; border-color: #e74c3c; color: #ff8a80; }
+.ttt-cell.o { background: #1f2d42; border-color: #4a90e2; color: #82b1ff; }
+
 /* ===== Wallet screen — full webapp visual ===== */
 #screen-wallet { background: #fff; border-radius: 20px; padding: 30px; }
 #screen-wallet h2 { text-align: center; color: #333; font-size: 24px; font-weight: 700; }

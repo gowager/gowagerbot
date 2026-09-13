@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GoWager - Wager with Friends</title>
-  <link rel="stylesheet" href="style.css?v=6">
+  <link rel="stylesheet" href="style.css?v=7">
 </head>
 <body>
   <div id="app">
@@ -84,6 +84,12 @@
           <p>Hide 4 rockets, hunt theirs. Last fleet standing wins!</p>
           <button class="btn-primary btn-sm">Play Now</button>
         </div>
+        <div class="game-card" onclick="selectGame('tictactoe')">
+          <div class="game-icon">⭕❌</div>
+          <h3>Tic Tac Toe</h3>
+          <p>Noughts & Crosses. Get 3 in a row to win!</p>
+          <button class="btn-primary btn-sm">Play Now</button>
+        </div>
         <div class="game-card locked">
           <div class="game-icon">🔒</div>
           <h3>Coming Soon</h3>
@@ -138,6 +144,15 @@
       <button class="btn-back" onclick="showScreen('screen-games')">← Back</button>
     </div>
 
+    <!-- Tic Tac Toe Options Screen (Create/Join) -->
+    <div id="screen-ttt-options" class="screen">
+      <h2>Tic Tac Toe ⭕❌</h2>
+      <p class="subtitle">What would you like to do?</p>
+      <button class="btn-primary btn-large" onclick="showScreen('screen-create-ttt')">Create Game</button>
+      <button class="btn-secondary btn-large" onclick="showScreen('screen-join-game')">Join Game</button>
+      <button class="btn-back" onclick="showScreen('screen-games')">← Back</button>
+    </div>
+
     <!-- War Zone Create Screen -->
     <div id="screen-create-wz" class="screen">
       <h2>War Zone</h2>
@@ -173,6 +188,41 @@
       <button class="btn-back" onclick="showScreen('screen-wz-options')">← Back</button>
     </div>
 
+    <!-- Tic Tac Toe Create Screen -->
+    <div id="screen-create-ttt" class="screen">
+      <h2>Tic Tac Toe</h2>
+      <p class="subtitle">3×3 grid - get three in a row before your opponent!</p>
+      <div class="form-group">
+        <label>Opponent's Telegram ID or @username</label>
+        <input type="text" id="ttt-opponent-id" placeholder="e.g. 123456789 or @axe773">
+      </div>
+      <div class="form-group" id="ttt-stake-group">
+        <label>Stake per Match (50-500 NGN)</label>
+        <input type="number" id="ttt-stake" min="50" max="500" step="10" value="50">
+      </div>
+      <div class="form-group">
+        <label>Seconds per Move</label>
+        <div class="segmented">
+          <button class="seg-btn active" data-val="15" onclick="selectSeg(this, 'ttt-move-seconds')">15s</button>
+          <button class="seg-btn" data-val="20" onclick="selectSeg(this, 'ttt-move-seconds')">20s</button>
+          <button class="seg-btn" data-val="30" onclick="selectSeg(this, 'ttt-move-seconds')">30s</button>
+        </div>
+        <input type="hidden" id="ttt-move-seconds" value="15">
+      </div>
+      <div class="total-display" id="ttt-pot-display">
+        <strong>Total Pot: <span id="ttt-pot">4.00</span> NGN</strong>
+        <p class="pot-hint">Your Stake: <span id="ttt-share">2.00</span> NGN (deducted from wallet)</p>
+        <p class="pot-hint">Move timer - skip your turn if you run out - winner takes pot minus 5% fee</p>
+      </div>
+      <div class="total-display free-badge" id="ttt-free-badge" style="display:none;">
+        <strong>Total Pot: FREE</strong>
+        <p class="pot-hint">Your Deposit: 0.00 NGN</p>
+        <p class="pot-hint">Move timer - skip your turn if you run out - no money involved!</p>
+      </div>
+      <button class="btn-primary" onclick="createTttGame()">Create Game</button>
+      <button class="btn-back" onclick="showScreen('screen-ttt-options')">← Back</button>
+    </div>
+
     <!-- War Zone Play Screen -->
     <div id="screen-play-wz" class="screen">
       <h2>War Zone 🚀</h2>
@@ -194,6 +244,17 @@
       <div id="wz-confirm-box">
         <button class="btn-primary" id="wz-confirm-btn" onclick="wzConfirm()" disabled>Confirm Positions</button>
       </div>
+    </div>
+
+    <!-- Tic Tac Toe Play Screen -->
+    <div id="screen-play-ttt" class="screen">
+      <h2>Tic Tac Toe ⭕❌</h2>
+      <p class="subtitle" id="ttt-role-label"></p>
+      <p id="ttt-move-timer" style="text-align:center;font-weight:700;color:#ff6b6b;display:none;"></p>
+      <p id="ttt-status" style="text-align:center;min-height:20px;font-size:14px;color:#555;margin:8px 0;"></p>
+      <div id="ttt-board" class="ttt-grid"></div>
+      <div id="ttt-result" style="text-align:center;font-weight:700;min-height:24px;margin:10px 0;"></div>
+      <button class="btn-danger" onclick="confirmResign()">Resign</button>
     </div>
 
     <!-- Create Game Screen (RPS) -->
@@ -477,6 +538,6 @@
   </div>
 
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

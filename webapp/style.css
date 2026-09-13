@@ -907,6 +907,37 @@ p {
 .wz-cell.sunk { background: #ffd6d6; border-color: #c0392b; }
 .wz-cell.miss { background: #dcefff; border-color: #7fb3ff; }
 
+/* ---------- TIC TAC TOE ---------- */
+.ttt-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  max-width: 320px;
+  margin: 0 auto 12px;
+}
+.ttt-cell {
+  aspect-ratio: 1;
+  min-height: 70px;
+  border-radius: 10px;
+  border: 2px solid #d7d7d7;
+  background: #eef2f7;
+  font-size: 40px;
+  font-weight: 800;
+  color: #333;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ttt-cell:active:not(:disabled) { transform: scale(0.95); }
+.ttt-cell:disabled { cursor: default; }
+.ttt-cell.x { background: #fff0f0; border-color: #e74c3c; color: #e74c3c; }
+.ttt-cell.o { background: #eef6ff; border-color: #4a90e2; color: #4a90e2; }
+
 /* ===== Withdrawal requests + admin ===== */
 .wdr-note {
   font-size: 13px;

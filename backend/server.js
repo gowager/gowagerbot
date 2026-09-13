@@ -125,7 +125,7 @@ function validateResignRule(rule) {
 }
 
 function validateGameType(t) {
-  return ['rps', 'redblack', 'warzone'].includes(t);
+  return ['rps', 'redblack', 'warzone', 'tictactoe'].includes(t);
 }
 
 function validateCreatorRole(r) {
@@ -229,7 +229,7 @@ app.post('/api/games', async (req, res) => {
     if (!free && !validateAmount(amountPerRound)) {
       return res.status(400).json({ error: `Bet must be ${GAME_MIN_NGN}-${GAME_MAX_NGN} NGN per card, in multiples of ${GAME_STEP_NGN}` });
     }
-  } else if (type === 'warzone') {
+  } else if (type === 'warzone' || type === 'tictactoe') {
     // Single-match stake: amount is the whole match bet, rounds forced to 1
     if (!free && !validateAmount(amountPerRound)) return res.status(400).json({ error: `Stake must be ${GAME_MIN_NGN}-${GAME_MAX_NGN} NGN per match, in multiples of ${GAME_STEP_NGN}` });
   } else {
@@ -237,7 +237,7 @@ app.post('/api/games', async (req, res) => {
     if (!free && !validateAmount(amountPerRound)) return res.status(400).json({ error: `Amount must be ${GAME_MIN_NGN}-${GAME_MAX_NGN} NGN, in multiples of ${GAME_STEP_NGN}` });
   }
   if (!free) {
-    if (type === 'warzone') {
+    if (type === 'warzone' || type === 'tictactoe') {
       if (![15, 20, 30].includes(Number(roundSeconds))) return res.status(400).json({ error: 'Move time must be 15, 20, or 30 seconds' });
     } else if (!validateRoundSeconds(roundSeconds)) {
       return res.status(400).json({ error: 'Round seconds must be 30, 45, or 60' });
@@ -276,18 +276,18 @@ app.post('/api/games', async (req, res) => {
     }
 
     const roomCode = generateRoomCode();
-    const isWarzone = type === 'warzone';
+    const isSingleMatch = type === 'warzone' || type === 'tictactoe';
     const game = await db.createGame({
       room_code: roomCode,
       creator_id: creator.id,
       opponent_id: opponent.id,
       game_type: type,
       creator_role: type === 'redblack' ? creatorRole : null,
-      rounds: isWarzone ? 1 : Number(rounds),
+      rounds: isSingleMatch ? 1 : Number(rounds),
       amount_per_round: free ? 0 : Number(amountPerRound),
       round_seconds: Number(roundSeconds) || 30,
-      payout_style: type === 'redblack' || isWarzone ? 'winner_takes_all' : payoutStyle,
-      resign_rule: type === 'redblack' || isWarzone ? 'full_pot' : resignRule,
+      payout_style: type === 'redblack' || isSingleMatch ? 'winner_takes_all' : payoutStyle,
+      resign_rule: type === 'redblack' || isSingleMatch ? 'full_pot' : resignRule,
       resign_definition: '2_games_in_a_row',
       is_free: free,
     });
@@ -966,6 +966,11 @@ io.on('connection', (socket) => {
         startWarZone(state);
       }
 
+      // Tic Tac Toe: if the server restarted mid-game, re-init the engine
+      if (state.game.status === 'in_progress' && state.game.game_type === 'tictactoe' && !state.ttt) {
+        startTicTacToe(state);
+      }
+
       // Re-sync Red or Black mid-game state for returning players
       if (state.game.status === 'in_progress' && state.game.game_type === 'redblack' && state.rb) {
         const { dealerId, playerId } = rbRoles(state.game);
@@ -1000,6 +1005,18 @@ io.on('connection', (socket) => {
             incomingShots: isCreator ? [...state.wz.opponentGuesses].map(cellId) : [...state.wz.creatorGuesses].map(cellId),
           });
         }
+      }
+
+      // Re-sync Tic Tac Toe mid-game state for returning players
+      if (state.game.status === 'in_progress' && state.game.game_type === 'tictactoe' && state.ttt) {
+        socket.emit('ttt_state', {
+          board: state.ttt.board,
+          turn: state.ttt.turn,
+          moveDeadline: state.ttt.moveDeadline,
+          winner: state.ttt.winner,
+          tie: state.ttt.tie,
+          gameOver: !!state.ttt.winner || state.ttt.tie,
+        });
       }
 
       // Notify the other player
@@ -1041,6 +1058,7 @@ io.on('connection', (socket) => {
         io.to(`game_${game.id}`).emit('game_started', { game: updated });
         if (updated.game_type === 'redblack') startRedBlack(state);
         else if (updated.game_type === 'warzone') startWarZone(state);
+        else if (updated.game_type === 'tictactoe') startTicTacToe(state);
         else startRoundTimer(state);
       } else {
         io.to(`game_${game.id}`).emit('lobby_update', {
@@ -1236,6 +1254,48 @@ io.on('connection', (socket) => {
     }
   });
 
+  // ---------- TIC TAC TOE HANDLERS ----------
+
+  socket.on('ttt_move', async ({ gameId, index }) => {
+    try {
+      const state = activeGames.get(gameId);
+      if (!state || !state.ttt || state.game.status !== 'in_progress') return socket.emit('error', { message: 'Game not active' });
+      const t = state.ttt;
+      if (t.winner || t.tie) return socket.emit('error', { message: 'Game already finished' });
+
+      const game = state.game;
+      const userId = socket.data.userId;
+      const isCreator = userId === game.creator_id;
+      if (!isCreator && userId !== game.opponent_id) return socket.emit('error', { message: 'You are not part of this game' });
+      if ((t.turn === 'creator') !== isCreator) return socket.emit('error', { message: 'Not your turn' });
+
+      const idx = Number(index);
+      if (!Number.isInteger(idx) || idx < 0 || idx >= TTT_SIZE) return socket.emit('error', { message: 'Invalid box' });
+      if (t.board[idx]) return socket.emit('error', { message: 'Box already taken' });
+
+      t.board[idx] = isCreator ? 'X' : 'O';
+      const mark = tttFindWinner(t.board);
+      if (mark || t.board.every(Boolean)) {
+        await tttEndGame(state, mark);
+        return;
+      }
+
+      t.turn = isCreator ? 'opponent' : 'creator';
+      scheduleAbsenceSettlement(state);
+      tttBeginTurn(state);
+      io.to(`game_${gameId}`).emit('ttt_state', {
+        board: t.board,
+        turn: t.turn,
+        moveDeadline: t.moveDeadline,
+        winner: null,
+        tie: false,
+        gameOver: false,
+      });
+    } catch (err) {
+      socket.emit('error', { message: err.message });
+    }
+  });
+
   // Player resigns
   socket.on('resign', async ({ gameId }) => {
     try {
@@ -1250,6 +1310,7 @@ io.on('connection', (socket) => {
       clearTimeout(state.roundTimer);
       clearTimeout(state.wzTimer);
       clearTimeout(state.wz?.moveTimer);
+      clearTimeout(state.ttt?.moveTimer);
 
       // Settle based on resign rule (full_pot or per_game)
       await settleGame(state, {
@@ -1484,6 +1545,97 @@ function startWzMoveTimer(state) {
   }, seconds * 1000);
 }
 
+// ---------- TIC TAC TOE ENGINE ----------
+// 3x3 board, 9 boxes indexed 0-8. Creator plays X and starts; opponent plays O.
+// 15/20/30s per move. If a player runs out of time their turn is skipped.
+
+const TTT_SIZE = 9;
+const TTT_MOVE_SECONDS = (state) => Math.min(Math.max(Number(state.game.round_seconds) || 15, 5), 30);
+const TTT_WIN_LINES = [
+  [0, 1, 2], [3, 4, 5], [6, 7, 8],
+  [0, 3, 6], [1, 4, 7], [2, 5, 8],
+  [0, 4, 8], [2, 4, 6],
+];
+
+function tttFindWinner(board) {
+  for (const [a, b, c] of TTT_WIN_LINES) {
+    if (board[a] && board[a] === board[b] && board[a] === board[c]) return board[a];
+  }
+  return null;
+}
+
+function startTicTacToe(state) {
+  state.ttt = {
+    board: new Array(TTT_SIZE).fill(''),
+    turn: 'creator', // creator = X
+    moveTimer: null,
+    moveDeadline: null,
+    winner: null,
+    tie: false,
+  };
+  scheduleAbsenceSettlement(state);
+  tttBeginTurn(state);
+  io.to(`game_${state.game.id}`).emit('ttt_state', {
+    board: state.ttt.board,
+    turn: state.ttt.turn,
+    moveDeadline: state.ttt.moveDeadline,
+    winner: null,
+    tie: false,
+    gameOver: false,
+  });
+}
+
+function tttBeginTurn(state) {
+  const t = state.ttt;
+  const seconds = TTT_MOVE_SECONDS(state);
+  t.moveDeadline = Date.now() + seconds * 1000;
+  clearTimeout(t.moveTimer);
+  t.moveTimer = setTimeout(() => {
+    if (!state.ttt || t.winner || t.tie) return;
+    const skipped = t.turn;
+    t.turn = skipped === 'creator' ? 'opponent' : 'creator';
+    scheduleAbsenceSettlement(state);
+    tttBeginTurn(state);
+    io.to(`game_${state.game.id}`).emit('ttt_move_skipped', { skippedTurn: skipped });
+    io.to(`game_${state.game.id}`).emit('ttt_state', {
+      board: t.board,
+      turn: t.turn,
+      moveDeadline: t.moveDeadline,
+      winner: t.winner,
+      tie: t.tie,
+      gameOver: !!t.winner || t.tie,
+    });
+  }, seconds * 1000);
+}
+
+async function tttEndGame(state, winnerMark) {
+  const t = state.ttt;
+  clearTimeout(t.moveTimer);
+  const isCreatorWin = winnerMark === 'X';
+  const isTie = !winnerMark;
+  t.winner = isTie ? null : (isCreatorWin ? 'creator' : 'opponent');
+  t.tie = !!isTie;
+
+  const creatorScore = t.winner === 'creator' ? 1 : 0;
+  const opponentScore = t.winner === 'opponent' ? 1 : 0;
+  const updated = await db.updateGame(state.game.id, {
+    status: 'completed',
+    creator_score: creatorScore,
+    opponent_score: opponentScore,
+  });
+  state.game = updated;
+
+  io.to(`game_${state.game.id}`).emit('ttt_state', {
+    board: t.board,
+    turn: null,
+    moveDeadline: null,
+    winner: t.winner,
+    tie: t.tie,
+    gameOver: true,
+  });
+  await settleGame(state, { reason: 'completed' });
+}
+
 // ---------- GAME LOGIC ----------
 
 function resolveRound(state) {
@@ -1642,6 +1794,7 @@ async function settleGame(state, { reason, forfeiter = null }) {
   const opponentId = game.opponent_id;
   cancelAbsenceTimer(state);
   clearTimeout(state.wz?.moveTimer);
+  clearTimeout(state.ttt?.moveTimer);
 
   const isFree = !!game.is_free;
   const pot = Number(game.pot);
