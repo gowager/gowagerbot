@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GoWager - Wager with Friends</title>
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
   <div id="app">
@@ -150,15 +150,23 @@
         <label>Stake per Match (1-50 NGN)</label>
         <input type="number" id="wz-stake" min="50" max="500" step="10" value="50">
       </div>
+      <div class="form-group">
+        <label>Seconds per Move</label>
+        <select id="wz-move-seconds">
+          <option value="15">15 seconds</option>
+          <option value="20" selected>20 seconds</option>
+          <option value="30">30 seconds</option>
+        </select>
+      </div>
       <div class="total-display" id="wz-pot-display">
         <strong>Total Pot: <span id="wz-pot">4.00</span> NGN</strong>
         <p class="pot-hint">Your Stake: <span id="wz-share">2.00</span> NGN (deducted from wallet)</p>
-        <p class="pot-hint">30s to place 4 rockets — then take turns hunting — winner takes pot minus 5% fee</p>
+        <p class="pot-hint">30s to place 4 rockets — then turns with a move timer — skip your turn if too slow — winner takes pot minus 5% fee</p>
       </div>
       <div class="total-display free-badge" id="wz-free-badge" style="display:none;">
         <strong>Total Pot: FREE</strong>
         <p class="pot-hint">Your Deposit: 0.00 NGN</p>
-        <p class="pot-hint">30s to place 4 rockets — then take turns hunting — no money involved!</p>
+        <p class="pot-hint">30s to place 4 rockets — then turns with a move timer — skip your turn if too slow — no money involved!</p>
       </div>
       <button class="btn-primary" onclick="createWzGame()">Create Game</button>
       <button class="btn-back" onclick="showScreen('screen-wz-options')">← Back</button>
@@ -184,6 +192,7 @@
       </div>
       <div id="wz-result-msg" style="text-align:center;font-weight:700;min-height:24px;margin:10px 0;"></div>
       <p id="wz-status" style="text-align:center;"></p>
+      <p id="wz-move-timer" style="text-align:center;font-weight:700;color:#ff6b6b;display:none;"></p>
     </div>
 
     <!-- Create Game Screen (RPS) -->
@@ -467,6 +476,6 @@
   </div>
 
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

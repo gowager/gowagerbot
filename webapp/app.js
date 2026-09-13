@@ -183,6 +183,21 @@ let wzBattle = false;
 let wzMyTurn = false;
 let wzTimerInt = null;
 let wzLastChance = false;
+let wzMoveTimerInt = null;
+
+function wzStartMoveCountdown(deadline) {
+  clearInterval(wzMoveTimerInt);
+  const el = document.getElementById('wz-move-timer');
+  if (!el || !deadline) return;
+  el.style.display = 'block';
+  const tick = () => {
+    const left = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+    el.textContent = `⏱ ${left}s`;
+    if (left <= 0) clearInterval(wzMoveTimerInt);
+  };
+  tick();
+  wzMoveTimerInt = setInterval(tick, 500);
+}
 
 function updateWzPot() {
   const stake = parseInt(document.getElementById('wz-stake').value) || 50;
@@ -205,7 +220,7 @@ async function createWzGame() {
         opponentTelegramId,
         rounds: 1,
         amountPerRound: isFreeMode ? 0 : stake,
-        roundSeconds: 30,
+        roundSeconds: parseInt(document.getElementById('wz-move-seconds').value) || 20,
         payoutStyle: 'winner_takes_all',
         resignRule: 'full_pot',
         isFree: isFreeMode,
@@ -230,6 +245,9 @@ async function createWzGame() {
 
 function wzResetLocal() {
   clearInterval(wzTimerInt);
+  clearInterval(wzMoveTimerInt);
+  const mt = document.getElementById('wz-move-timer');
+  if (mt) mt.style.display = 'none';
   wzMyCells = new Set();
   wzPlaced = false;
   wzSubmitted = false;
@@ -338,6 +356,7 @@ socket.on('wz_battle_started', (data) => {
   wzMyTurn = isCreator ? data.turn === 'creator' : data.turn === 'opponent';
   wzRenderEnemyGrid();
   document.getElementById('wz-enemy-section').style.display = 'block';
+  wzStartMoveCountdown(data.moveDeadline);
   wzUpdateBattleStatus();
 });
 
@@ -407,6 +426,7 @@ socket.on('wz_sync', (data) => {
   document.getElementById('wz-my-hits').textContent = isCreator ? data.creatorHits : data.opponentHits;
   document.getElementById('wz-opp-hits').textContent = isCreator ? data.opponentHits : data.creatorHits;
   wzRenderEnemyGrid();
+  wzStartMoveCountdown(data.moveDeadline);
   wzUpdateBattleStatus();
 });
 
@@ -453,7 +473,13 @@ socket.on('wz_turn', (data) => {
   wzMyTurn = isCreator ? data.turn === 'creator' : data.turn === 'opponent';
   wzLastChance = !!data.lastChance;
   wzRenderEnemyGrid();
+  wzStartMoveCountdown(data.moveDeadline);
   wzUpdateBattleStatus();
+});
+
+socket.on('wz_move_skipped', (data) => {
+  const skippedMe = isCreator ? data.skippedTurn === 'creator' : data.skippedTurn === 'opponent';
+  showToast(skippedMe ? '⏰ Time up - your turn was skipped!' : '⏰ Opponent took too long - turn skipped.', 'info');
 });
 
 async function createRbGame() {
@@ -659,8 +685,9 @@ function renderRulesContent(game) {
       <div class="rule-row"><span class="rule-label">Total Pot</span><span class="rule-value">${isFree ? 'FREE' : (stake * 2).toFixed(2) + ' NGN'}</span></div>
       <div class="rule-row"><span class="rule-label">Your Deposit (Stake)</span><span class="rule-value">${isFree ? 'FREE' : stake.toFixed(2) + ' NGN'}</span></div>
       <div class="rule-row"><span class="rule-label">Rockets</span><span class="rule-value">4 per player</span></div>
-      <div class="rule-row"><span class="rule-label">Placement Time</span><span class="rule-value">${game.round_seconds}s</span></div>
-      <div class="rule-row"><span class="rule-label">How It Works</span><span class="rule-value">Place 4 rockets in ${game.round_seconds}s, then take turns firing at the enemy grid. Sink all 4 to win - the opponent gets one final shot to force a tie.</span></div>
+      <div class="rule-row"><span class="rule-label">Placement Time</span><span class="rule-value">30s</span></div>
+      <div class="rule-row"><span class="rule-label">Move Time</span><span class="rule-value">${game.round_seconds}s to fire - skip turn if you run out</span></div>
+      <div class="rule-row"><span class="rule-label">How It Works</span><span class="rule-value">Place 4 rockets in 30s, then take turns firing at the enemy grid. Sink all 4 to win - the opponent gets one final shot to force a tie.</span></div>
       <div class="rule-row"><span class="rule-label">Payout</span><span class="rule-value">Winner Takes All (ties refund both)</span></div>
     `;
   } else {

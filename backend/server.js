@@ -980,12 +980,14 @@ io.on('connection', (socket) => {
             turn: state.wz.turn,
             creatorCells: state.wz.creatorCells,
             opponentCells: state.wz.opponentCells,
+            moveDeadline: state.wz.moveDeadline,
           });
           socket.emit('wz_sync', {
             turn: state.wz.turn,
             creatorHits: state.wz.creatorHits,
             opponentHits: state.wz.opponentHits,
             lastChance: state.wz.lastChance,
+            moveDeadline: state.wz.moveDeadline,
             yourCells: isCreator ? state.wz.creatorCells : state.wz.opponentCells,
             yourGuesses: isCreator ? [...state.wz.creatorGuesses].map(cellId) : [...state.wz.opponentGuesses].map(cellId),
             incomingShots: isCreator ? [...state.wz.opponentGuesses].map(cellId) : [...state.wz.creatorGuesses].map(cellId),
@@ -1214,11 +1216,13 @@ io.on('connection', (socket) => {
 
       if (gameOver) {
         state.wz.phase = 'done';
+        clearTimeout(state.wz.moveTimer);
         settleGame(state, { reason: 'completed' });
       } else {
         state.wz.turn = isCreator ? 'opponent' : 'creator';
         scheduleAbsenceSettlement(state);
-        io.to(`game_${gameId}`).emit('wz_turn', { turn: state.wz.turn, lastChance: !!state.wz.lastChance });
+        startWzMoveTimer(state);
+        io.to(`game_${gameId}`).emit('wz_turn', { turn: state.wz.turn, lastChance: !!state.wz.lastChance, moveDeadline: state.wz.moveDeadline });
       }
     } catch (err) {
       socket.emit('error', { message: err.message });
@@ -1238,6 +1242,7 @@ io.on('connection', (socket) => {
       const resignerId = userId;
       clearTimeout(state.roundTimer);
       clearTimeout(state.wzTimer);
+      clearTimeout(state.wz?.moveTimer);
 
       // Settle based on resign rule (full_pot or per_game)
       await settleGame(state, {
@@ -1419,6 +1424,8 @@ function startWarZone(state) {
     opponentGuesses: new Set(),
     turn: 'creator',
     lastChance: false,
+    moveTimer: null,
+    moveDeadline: null,
   };
   scheduleAbsenceSettlement(state);
   io.to(`game_${state.game.id}`).emit('wz_placement_started', { seconds: WZ_PLACE_SECONDS });
@@ -1440,11 +1447,34 @@ function wzBeginBattle(state) {
   clearTimeout(state.wzTimer);
   state.wz.phase = 'battle';
   scheduleAbsenceSettlement(state);
+  const moveSeconds = WZ_MOVE_SECONDS(state);
+  state.wz.moveDeadline = Date.now() + moveSeconds * 1000;
+  startWzMoveTimer(state);
   io.to(`game_${state.game.id}`).emit('wz_battle_started', {
     turn: state.wz.turn,
     creatorCells: state.wz.creatorCells,
     opponentCells: state.wz.opponentCells,
+    moveDeadline: state.wz.moveDeadline,
   });
+}
+
+const WZ_MOVE_SECONDS = (state) => Math.min(Math.max(Number(state.game.round_seconds) || 30, 5), 30);
+
+// Turn timer for a War Zone shot. If the player does not fire in time, their
+// turn is skipped and passed to the other player.
+function startWzMoveTimer(state) {
+  clearTimeout(state.wz.moveTimer);
+  const seconds = WZ_MOVE_SECONDS(state);
+  state.wz.moveDeadline = Date.now() + seconds * 1000;
+  state.wz.moveTimer = setTimeout(() => {
+    if (!state.wz || state.wz.phase !== 'battle') return;
+    const skipped = state.wz.turn;
+    state.wz.turn = skipped === 'creator' ? 'opponent' : 'creator';
+    scheduleAbsenceSettlement(state);
+    startWzMoveTimer(state);
+    io.to(`game_${state.game.id}`).emit('wz_move_skipped', { skippedTurn: skipped });
+    io.to(`game_${state.game.id}`).emit('wz_turn', { turn: state.wz.turn, lastChance: !!state.wz.lastChance, moveDeadline: state.wz.moveDeadline });
+  }, seconds * 1000);
 }
 
 // ---------- GAME LOGIC ----------
@@ -1604,6 +1634,7 @@ async function settleGame(state, { reason, forfeiter = null }) {
   const creatorId = game.creator_id;
   const opponentId = game.opponent_id;
   cancelAbsenceTimer(state);
+  clearTimeout(state.wz?.moveTimer);
 
   const isFree = !!game.is_free;
   const pot = Number(game.pot);
