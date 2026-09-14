@@ -24,6 +24,7 @@ function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   activeScreen = id;
+  if (id !== 'screen-admin') stopAdminUsersRefresh();
   if (id === 'screen-welcome') { loadPendingGames(); isFreeMode = false; }
   if (id === 'screen-create-game') applyFreeModeUI('rps');
   if (id === 'screen-create-rb') applyFreeModeUI('rb');
@@ -1584,6 +1585,7 @@ async function adminLogin() {
     passInput.value = '';
     showToast('Admin authenticated', 'success');
     showAdminPanel();
+    showAdminTab('withdrawals');
     loadAdminRequests('pending');
   } catch (err) {
     if (err.status === 403) showToast('Wrong passcode', 'error');
@@ -1593,7 +1595,10 @@ async function adminLogin() {
 
 function adminLogout() {
   sessionStorage.removeItem('gowager_admin_code');
+  stopAdminUsersRefresh();
   document.getElementById('admin-requests-list').innerHTML = '';
+  document.getElementById('admin-games-list').innerHTML = '';
+  document.getElementById('admin-users-list').innerHTML = '';
   document.getElementById('admin-note').textContent = '';
   showAdminLogin();
 }
@@ -1602,9 +1607,11 @@ function openAdmin() {
   showScreen('screen-admin');
   if (getAdminCode()) {
     showAdminPanel();
+    showAdminTab('withdrawals');
     loadAdminRequests('pending');
   } else {
     showAdminLogin();
+    stopAdminUsersRefresh();
   }
 }
 
@@ -1669,6 +1676,110 @@ async function rejectWithdrawalRequest(id) {
       loadAdminRequests('pending');
     } catch (err) { showToast(err.message, 'error'); }
   }, () => {});
+}
+
+// ---------- ADMIN: GAMES + USERS ----------
+
+let adminActiveTab = 'withdrawals';
+let adminUsersTimer = null;
+
+function showAdminTab(tab) {
+  adminActiveTab = tab;
+  ['withdrawals', 'games', 'users'].forEach(t => {
+    const btn = document.getElementById(`admin-tab-btn-${t}`);
+    const panel = document.getElementById(`admin-tab-${t}`);
+    if (btn) btn.classList.toggle('active', t === tab);
+    if (panel) panel.style.display = t === tab ? 'block' : 'none';
+  });
+  const titles = { withdrawals: 'Withdrawal Requests', games: 'Game History', users: 'Users & Balances' };
+  const titleEl = document.getElementById('admin-title');
+  if (titleEl) titleEl.textContent = titles[tab] || '';
+  if (tab === 'games') loadAdminGames();
+  else if (tab === 'users') loadAdminUsers(true);
+  else stopAdminUsersRefresh();
+}
+
+function stopAdminUsersRefresh() {
+  if (adminUsersTimer) { clearInterval(adminUsersTimer); adminUsersTimer = null; }
+}
+
+const ADMIN_GAME_LABELS = {
+  rps: 'Rock Paper Scissors ✊📄✂️',
+  redblack: 'Red or Black 🃏',
+  warzone: 'War Zone 🚀',
+  tictactoe: 'Tic Tac Toe ⭕❌',
+};
+
+async function loadAdminGames() {
+  const code = getAdminCode();
+  if (!code) { showAdminLogin(); return; }
+  const listEl = document.getElementById('admin-games-list');
+  const noteEl = document.getElementById('admin-note-games');
+  listEl.innerHTML = '<p style="color:#999;font-size:14px">Loading…</p>';
+  try {
+    const games = await api('/api/admin/games?limit=200', { headers: { 'x-admin-code': code } });
+    noteEl.textContent = `${games.length} most recent game(s)`;
+    if (games.length === 0) {
+      listEl.innerHTML = '<p style="color:#999;font-size:14px">No games found</p>';
+      return;
+    }
+    const statusLabel = {
+      pending: '⏳ Waiting',
+      ready: '🟢 Ready',
+      in_progress: '🔥 In Progress',
+      completed: '✅ Completed',
+      cancelled: '✖️ Cancelled',
+    };
+    listEl.innerHTML = games.map(g => {
+      const winner = g.status === 'completed'
+        ? (g.creator_score > g.opponent_score ? g.creator_name : g.opponent_score > g.creator_score ? g.opponent_name : 'Tie')
+        : '—';
+      const scoreLine = `${g.creator_name} ${g.creator_score} - ${g.opponent_score} ${g.opponent_name}`;
+      const stake = Number(g.pot) ? Number(g.pot).toFixed(2) : 'FREE';
+      return `
+        <div class="ah-item">
+          <div class="ah-top">
+            <strong>${ADMIN_GAME_LABELS[g.game_type] || g.game_type}</strong>
+            <span class="wr-status" style="color:${g.status === 'completed' ? '#1a7f37' : g.status === 'in_progress' ? '#b45309' : g.status === 'cancelled' ? '#e02424' : '#999'}">${statusLabel[g.status] || g.status}</span>
+          </div>
+          <div class="ah-details">Room <strong>${escHtml(g.room_code)}</strong> · ${g.creator_name} vs ${g.opponent_name}</div>
+          <div class="ah-details">${scoreLine} ${g.status === 'completed' ? `· Winner: <strong>${escHtml(String(winner))}</strong>` : ''}</div>
+          <div class="ah-meta">Pot: <strong>${g.is_free ? 'FREE' : stake + ' NGN'}</strong> · Stake: ${g.is_free ? 'FREE' : Number(g.amount_per_round).toFixed(2) + ' NGN'} · ${g.round_seconds}s per move · ${new Date(g.created_at).toLocaleString()}</div>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    if (err.status === 403) { sessionStorage.removeItem('gowager_admin_code'); showAdminLogin(); showToast('Session expired — log in again', 'error'); return; }
+    noteEl.textContent = err.message;
+  }
+}
+
+async function loadAdminUsers(autorefresh = false) {
+  const code = getAdminCode();
+  if (!code) { showAdminLogin(); return; }
+  const listEl = document.getElementById('admin-users-list');
+  const noteEl = document.getElementById('admin-note-users');
+  try {
+    const users = await api('/api/admin/users', { headers: { 'x-admin-code': code } });
+    noteEl.textContent = `${users.length} user(s) · live balance refresh every 5s`;
+    if (users.length === 0) {
+      listEl.innerHTML = '<p style="color:#999;font-size:14px">No users yet</p>';
+    } else {
+      listEl.innerHTML = users.map(u => `
+        <div class="au-item">
+          <span class="au-name">${escHtml(u.username ? '@' + u.username : u.telegram_id)}</span>
+          <span class="au-id">${escHtml(u.telegram_id)}</span>
+          <span class="au-balance">${Number(u.balance).toFixed(2)} NGN</span>
+        </div>
+      `).join('');
+    }
+    if (autorefresh && !adminUsersTimer) {
+      adminUsersTimer = setInterval(() => loadAdminUsers(false), 5000);
+    }
+  } catch (err) {
+    if (err.status === 403) { sessionStorage.removeItem('gowager_admin_code'); showAdminLogin(); showToast('Session expired — log in again', 'error'); return; }
+    noteEl.textContent = err.message;
+  }
 }
 
 async function loadTransactions() {

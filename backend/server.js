@@ -765,6 +765,62 @@ app.post('/api/admin/clear-pending-games', isAdmin, async (req, res) => {
   }
 });
 
+// Admin: full game history for dispute resolution
+app.get('/api/admin/games', isAdmin, async (req, res) => {
+  if (!checkRateLimit(req._rlKey)) return res.status(429).json({ error: 'Too many requests' });
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 200, 500);
+    const games = await db.getAllGames(limit);
+    const enriched = await Promise.all(games.map(async (g) => {
+      const creator = await db.getUserById(g.creator_id);
+      const opponent = g.opponent_id ? await db.getUserById(g.opponent_id) : null;
+      return {
+        id: g.id,
+        room_code: g.room_code,
+        game_type: g.game_type,
+        status: g.status,
+        creator_name: creator?.username || creator?.telegram_id || 'unknown',
+        opponent_name: opponent?.username || opponent?.telegram_id || 'unknown',
+        creator_id: g.creator_id,
+        opponent_id: g.opponent_id,
+        creator_score: Number(g.creator_score) || 0,
+        opponent_score: Number(g.opponent_score) || 0,
+        amount_per_round: Number(g.amount_per_round) || 0,
+        pot: Number(g.pot) || 0,
+        rounds: g.rounds,
+        round_seconds: g.round_seconds,
+        payout_style: g.payout_style,
+        resign_rule: g.resign_rule,
+        is_free: g.is_free,
+        current_round: g.current_round,
+        created_at: g.created_at,
+      };
+    }));
+    res.json(enriched);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Admin: all users with wallet balances (supports real-time polling)
+app.get('/api/admin/users', isAdmin, async (req, res) => {
+  if (!checkRateLimit(req._rlKey)) return res.status(429).json({ error: 'Too many requests' });
+  try {
+    const users = await db.getAllUsersWithBalance();
+    res.json(users.map(u => ({
+      id: u.id,
+      telegram_id: u.telegram_id,
+      username: u.username,
+      tg_username: u.tg_username,
+      email: u.email,
+      balance: Number(u.balance) || 0,
+      created_at: u.created_at,
+    })));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Admin clears every in-progress game. Both players' full stakes are refunded
 // and the games are voided (deleted) - treated as if they never happened.
 app.post('/api/admin/clear-in-progress-games', isAdmin, async (req, res) => {

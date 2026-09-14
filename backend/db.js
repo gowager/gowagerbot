@@ -450,6 +450,34 @@ async function updateWithdrawalRequest(id, updates) {
   return res.rows[0] || null;
 }
 
+async function getAllGames(limit = 200) {
+  if (useMemory) {
+    return [...memoryStore.games.values()]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, limit);
+  }
+  const res = await pool.query(
+    'SELECT * FROM games ORDER BY created_at DESC LIMIT $1',
+    [limit]
+  );
+  return res.rows;
+}
+
+async function getAllUsersWithBalance() {
+  if (useMemory) {
+    const users = [...memoryStore.users.values()].map(u => {
+      const wallet = memoryStore.wallets.get(u.id) || { balance: 0 };
+      return { ...u, balance: wallet.balance };
+    });
+    return users.sort((a, b) => (a.username || '').localeCompare(b.username || ''));
+  }
+  const res = await pool.query(
+    'SELECT u.id, u.telegram_id, u.username, u.tg_username, u.email, COALESCE(w.balance, 0)::numeric AS balance, u.created_at ' +
+    'FROM users u LEFT JOIN wallets w ON u.id = w.user_id ORDER BY u.username ASC'
+  );
+  return res.rows;
+}
+
 module.exports = {
   initDb,
   getDbMode,
@@ -477,4 +505,6 @@ module.exports = {
   getWithdrawalRequestsByUser,
   getAllWithdrawalRequests,
   updateWithdrawalRequest,
+  getAllGames,
+  getAllUsersWithBalance,
 };

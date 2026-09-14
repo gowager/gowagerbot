@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GoWager - Wager with Friends</title>
-  <link rel="stylesheet" href="style.css?v=8">
+  <link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
   <div id="app">
@@ -520,24 +520,43 @@
         <button class="btn-back" onclick="showScreen('screen-welcome')">← Back</button>
       </div>
       <div id="admin-panel" style="display:none">
-        <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <strong id="admin-title" style="color:#fff">Withdrawal Requests</strong>
           <button class="btn-small" style="background:#e02424" onclick="adminLogout()">Logout</button>
         </div>
-        <div class="admin-filters">
-          <button class="btn-small" onclick="loadAdminRequests('pending')">⏳ Pending</button>
-          <button class="btn-small" onclick="loadAdminRequests('completed')">✅ Completed</button>
-          <button class="btn-small" onclick="loadAdminRequests('cancelled')">✖️ Cancelled</button>
-          <button class="btn-small" onclick="loadAdminRequests('rejected')">↩️ Rejected</button>
-          <button class="btn-small" onclick="loadAdminRequests('')">All</button>
+        <div class="admin-tabs">
+          <button class="admin-tab active" id="admin-tab-btn-withdrawals" onclick="showAdminTab('withdrawals')">💸 Withdrawals</button>
+          <button class="admin-tab" id="admin-tab-btn-games" onclick="showAdminTab('games')">🎮 Games</button>
+          <button class="admin-tab" id="admin-tab-btn-users" onclick="showAdminTab('users')">👥 Users</button>
         </div>
-        <div id="admin-note" style="color:#999;font-size:13px;margin:6px 0"></div>
-        <div id="admin-requests-list"></div>
+
+        <div id="admin-tab-withdrawals">
+          <div class="admin-filters">
+            <button class="btn-small" onclick="loadAdminRequests('pending')">⏳ Pending</button>
+            <button class="btn-small" onclick="loadAdminRequests('completed')">✅ Completed</button>
+            <button class="btn-small" onclick="loadAdminRequests('cancelled')">✖️ Cancelled</button>
+            <button class="btn-small" onclick="loadAdminRequests('rejected')">↩️ Rejected</button>
+            <button class="btn-small" onclick="loadAdminRequests('')">All</button>
+          </div>
+          <div id="admin-note" style="color:#999;font-size:13px;margin:6px 0"></div>
+          <div id="admin-requests-list"></div>
+        </div>
+
+        <div id="admin-tab-games" style="display:none">
+          <div id="admin-note-games" style="color:#999;font-size:13px;margin:6px 0"></div>
+          <div id="admin-games-list"></div>
+        </div>
+
+        <div id="admin-tab-users" style="display:none">
+          <div id="admin-note-users" style="color:#999;font-size:13px;margin:6px 0"></div>
+          <div id="admin-users-list"></div>
+        </div>
       </div>
       <button class="btn-back" id="admin-back" style="display:none" onclick="showScreen('screen-welcome')">← Back</button>
     </div>
   </div>
 
   <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-  <script src="app.js?v=8"></script>
+  <script src="app.js?v=9"></script>
 </body>
 </html>

@@ -965,6 +965,36 @@ p {
 .wr-meta { font-size: 12px; color: #999; margin-top: 2px; }
 .wr-actions { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
 .admin-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.admin-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.admin-tab {
+  flex: 1;
+  padding: 9px 6px;
+  border: 1px solid #d7d7ee;
+  border-radius: 10px;
+  background: #eceef7;
+  color: #444;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.admin-tab.active { background: #5b5bd6; border-color: #5b5bd6; color: #fff; }
+.ah-item { background: #f8f9fa; border: 1px solid #e9ecef; border-radius: 10px; padding: 10px; margin-bottom: 8px; }
+.ah-top { display: flex; justify-content: space-between; align-items: center; color: #333; }
+.ah-details { font-size: 13px; color: #555; margin-top: 4px; }
+.ah-meta { font-size: 12px; color: #999; margin-top: 2px; }
+.au-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+.au-name { flex: 1; font-size: 14px; font-weight: 600; color: #333; }
+.au-id { font-size: 12px; color: #999; }
+.au-balance { font-size: 14px; font-weight: 700; color: #1a7f37; }
 #screen-admin h2 { text-align: center; }
 .admin-login { background: #23233a; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
 .admin-login .form-group { margin-bottom: 10px; }
