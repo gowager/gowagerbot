@@ -622,6 +622,7 @@ function tttStartCountdown(deadline) {
 function tttRenderBoard(state) {
   const board = state.board || [];
   const turn = state.turn;
+  const winLine = state.winLine || [];
   tttGameOver = !!state.gameOver;
   const myTurn = tttGameOver ? false : (isCreator ? turn === 'creator' : turn === 'opponent');
   const grid = document.getElementById('ttt-board');
@@ -632,6 +633,7 @@ function tttRenderBoard(state) {
     cell.textContent = board[i] || '';
     cell.disabled = !myTurn || !!board[i];
     if (board[i]) cell.classList.add(board[i].toLowerCase());
+    if (winLine.includes(i)) cell.classList.add('win');
     cell.onclick = () => {
       if (!myTurn || board[i]) return;
       socket.emit('ttt_move', { gameId: currentGame.id, index: i });
@@ -640,6 +642,8 @@ function tttRenderBoard(state) {
   }
   const status = document.getElementById('ttt-status');
   const result = document.getElementById('ttt-result');
+  const myMark = isCreator ? 'X' : 'O';
+  const oppMark = isCreator ? 'O' : 'X';
   if (tttGameOver) {
     const winnerIsMe = state.winner === (isCreator ? 'creator' : 'opponent');
     if (state.tie) result.textContent = '🤝 It\'s a tie!';
@@ -647,7 +651,9 @@ function tttRenderBoard(state) {
     status.textContent = '';
   } else {
     result.textContent = '';
-    status.textContent = myTurn ? '🎯 Your turn - place your mark!' : '⏳ Waiting for opponent\'s move...';
+    status.textContent = myTurn
+      ? `🎯 Your turn (${myMark}) - place your mark!`
+      : `⏳ Waiting for opponent's move (${oppMark})...`;
   }
   tttStartCountdown(state.moveDeadline);
 }

@@ -1015,6 +1015,7 @@ io.on('connection', (socket) => {
           moveDeadline: state.ttt.moveDeadline,
           winner: state.ttt.winner,
           tie: state.ttt.tie,
+          winLine: state.ttt.winLine,
           gameOver: !!state.ttt.winner || state.ttt.tie,
         });
       }
@@ -1289,6 +1290,7 @@ io.on('connection', (socket) => {
         moveDeadline: t.moveDeadline,
         winner: null,
         tie: false,
+        winLine: t.winLine,
         gameOver: false,
       });
     } catch (err) {
@@ -1564,6 +1566,13 @@ function tttFindWinner(board) {
   return null;
 }
 
+function tttFindWinLine(board) {
+  for (const [a, b, c] of TTT_WIN_LINES) {
+    if (board[a] && board[a] === board[b] && board[a] === board[c]) return [a, b, c];
+  }
+  return null;
+}
+
 function startTicTacToe(state) {
   state.ttt = {
     board: new Array(TTT_SIZE).fill(''),
@@ -1572,6 +1581,7 @@ function startTicTacToe(state) {
     moveDeadline: null,
     winner: null,
     tie: false,
+    winLine: null,
   };
   scheduleAbsenceSettlement(state);
   tttBeginTurn(state);
@@ -1581,6 +1591,7 @@ function startTicTacToe(state) {
     moveDeadline: state.ttt.moveDeadline,
     winner: null,
     tie: false,
+    winLine: null,
     gameOver: false,
   });
 }
@@ -1603,6 +1614,7 @@ function tttBeginTurn(state) {
       moveDeadline: t.moveDeadline,
       winner: t.winner,
       tie: t.tie,
+      winLine: t.winLine,
       gameOver: !!t.winner || t.tie,
     });
   }, seconds * 1000);
@@ -1615,6 +1627,7 @@ async function tttEndGame(state, winnerMark) {
   const isTie = !winnerMark;
   t.winner = isTie ? null : (isCreatorWin ? 'creator' : 'opponent');
   t.tie = !!isTie;
+  t.winLine = isTie ? null : tttFindWinLine(t.board);
 
   const creatorScore = t.winner === 'creator' ? 1 : 0;
   const opponentScore = t.winner === 'opponent' ? 1 : 0;
@@ -1631,6 +1644,7 @@ async function tttEndGame(state, winnerMark) {
     moveDeadline: null,
     winner: t.winner,
     tie: t.tie,
+    winLine: t.winLine,
     gameOver: true,
   });
   await settleGame(state, { reason: 'completed' });

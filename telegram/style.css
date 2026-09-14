@@ -1138,6 +1138,16 @@ h2 {
 .ttt-cell:disabled { cursor: default; opacity: 0.85; }
 .ttt-cell.x { background: #462525; border-color: #e74c3c; color: #ff8a80; }
 .ttt-cell.o { background: #1f2d42; border-color: #4a90e2; color: #82b1ff; }
+.ttt-cell.win {
+  border-color: #f9a825;
+  background: #3d3d42;
+  box-shadow: 0 0 0 3px rgba(249, 168, 37, 0.35), 0 0 14px rgba(249, 168, 37, 0.55);
+  animation: tttWinPulse 0.9s ease-in-out infinite;
+}
+@keyframes tttWinPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
 
 /* ===== Wallet screen — full webapp visual ===== */
 #screen-wallet { background: #fff; border-radius: 20px; padding: 30px; }

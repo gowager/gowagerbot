@@ -937,6 +937,16 @@ p {
 .ttt-cell:disabled { cursor: default; }
 .ttt-cell.x { background: #fff0f0; border-color: #e74c3c; color: #e74c3c; }
 .ttt-cell.o { background: #eef6ff; border-color: #4a90e2; color: #4a90e2; }
+.ttt-cell.win {
+  border-color: #f9a825;
+  background: #fffde7;
+  box-shadow: 0 0 0 3px rgba(249, 168, 37, 0.35), 0 0 14px rgba(249, 168, 37, 0.55);
+  animation: tttWinPulse 0.9s ease-in-out infinite;
+}
+@keyframes tttWinPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
 
 /* ===== Withdrawal requests + admin ===== */
 .wdr-note {
